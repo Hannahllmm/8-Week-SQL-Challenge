@@ -12,4 +12,4 @@ I'm currently working my way through the [8 week SQL Challenge](https://8weeksql
 # Overview
 Danny seriously loves Japanese food so in the beginning of 2021, he decides to embark upon a risky venture and opens up a cute little restaurant that sells his 3 favourite foods: sushi, curry and ramen. Danny’s Diner is in need of your assistance to help the restaurant stay afloat - the restaurant has captured some very basic data from their few months of operation but have no idea how to use their data to help them run the business.
 
-Please fund the full case study [here](Case Study #1: Dann's Diner/README.md) and my solutions [here](Case Study #1: Dann's Diner/Solution.md)
+Please fund the full case study [here](Case Study #1: Danny's Diner/README.md) and my solutions [here](Case Study #1: Danny's Diner/Solution.md)
