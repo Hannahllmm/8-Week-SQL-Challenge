@@ -26,7 +26,7 @@ GROUP BY 1
 ORDER BY 1 ;
 ```
 
-### Result
+### Results
 
 | customer_id | total_sales |
 | ----------- | ----------- |
@@ -101,7 +101,7 @@ ORDER BY 2 desc
 LIMIT 1;
 ```
 
-### Result
+### Results
 
 | product_name | count |
 | ------------ | ----- |
@@ -112,7 +112,7 @@ Ramen is the most ordered product, being ordered a total of 8 times.
 
 ## 5. Which item was the most popular for each customer?
 
-###SQL Code
+### SQL Code
 ```sql
 WITH cte_sales AS (
 SELECT 
