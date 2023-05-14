@@ -41,12 +41,12 @@ We can see that customer A spent $76 which was the most out these customers and 
 
 ### SQL Code
 ```sql
-    SELECT
-        sales.customer_id customer_id,
-        COUNT (DISTINCT sales.order_date) days_visited
-    FROM dannys_diner.sales
-    GROUP BY 1
-    ORDER BY 1 ;
+SELECT
+    sales.customer_id customer_id,
+    COUNT (DISTINCT sales.order_date) days_visited
+FROM dannys_diner.sales
+GROUP BY 1
+ORDER BY 1 ;
 ```
 
 ### Results
@@ -60,9 +60,92 @@ We can see that customer B visited the most days. It would be interesting to see
 
 ## 3. What was the first item from the menu purchased by each customer?
 
+### SQL Code
+```sql
+WITH cte_sales AS (
+  SELECT 
+    ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY order_date) AS row_number,
+    *
+  FROM dannys_diner.sales
+)
+SELECT 
+	cte_sales.customer_id,
+	menu.product_name
+FROM cte_sales
+JOIN dannys_diner.menu
+ON cte_sales.product_id=menu.product_id
+WHERE cte_sales.row_number = 1;
+```
+
+### Results
+| customer_id | product_name |
+| ----------- | ------------ |
+| A           | sushi        |
+| B           | curry        |
+| C           | ramen        |
+
+We can see that each customer bought a different meal firt. Unfortunately we don't have a time stamp on the date the customers bought these meals so we have to assume that the the rows of data were recorded chronologically.
+
 ## 4. What is the most purchased item on the menu and how many times was it purchased by all customers?
 
+### SQL Code
+```sql
+SELECT 
+	menu.product_name,
+	COUNT(sales.product_id)	
+FROM dannys_diner.sales
+JOIN dannys_diner.menu
+ON sales.product_id=menu.product_id
+GROUP BY 1
+ORDER BY 2 desc
+LIMIT 1;
+```
+
+### Result
+
+| product_name | count |
+| ------------ | ----- |
+| ramen        | 8     |
+
+Ramen is the most ordered product, being ordered a total of 8 times.
+
+
 ## 5. Which item was the most popular for each customer?
+
+###SQL Code
+```sql
+WITH cte_sales AS (
+SELECT 
+	sales.customer_id,
+  	sales.product_id,
+	COUNT(sales.product_id) AS count,
+    DENSE_RANK() OVER (PARTITION BY sales.customer_id ORDER BY COUNT(sales.product_id) DESC) AS count_rank
+FROM dannys_diner.sales
+GROUP BY sales.customer_id, sales.product_id)
+  
+SELECT 
+	cte_sales.customer_id,
+  	menu.product_name,
+  	cte_sales.count
+FROM cte_sales
+JOIN dannys_diner.menu
+ON cte_sales.product_id=menu.product_id
+WHERE cte_sales.Count_rank = 1
+ORDER BY 1
+```
+
+### Results
+
+| customer_id | product_name | count |
+| ----------- | ------------ | ----- |
+| A           | ramen        | 3     |
+| B           | curry        | 2     |
+| B           | ramen        | 2     |
+| B           | sushi        | 2     |
+| C           | ramen        | 3     |
+
+Customers A and C both ordered ramen the most whereas customer B ordered all three options twice.
+
 
 ## 6. Which item was purchased first by the customer after they became a member?
 
