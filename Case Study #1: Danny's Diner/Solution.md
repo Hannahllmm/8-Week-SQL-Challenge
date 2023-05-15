@@ -187,3 +187,36 @@ We can see that customer A bought ramen first after being a member and customer 
 ## 9. If each $1 spent equates to 10 points and sushi has a 2x points multiplier - how many points would each customer have?
 
 ## 10. In the first week after a customer joins the program (including their join date) they earn 2x points on all items, not just sushi - how many points do customer A and B have at the end of January?
+```sql
+WITH cte_points AS (
+SELECT 
+    members.customer_id,
+    CASE
+        WHEN 
+            sales.product_id = 1 
+            OR sales.order_date < members.join_date + INTERVAL '6 days'  
+         THEN menu.price * 20
+         ELSE menu.price * 10
+    END AS points
+FROM dannys_diner.menu
+JOIN dannys_diner.sales 
+    ON sales.product_id = menu.product_id
+JOIN dannys_diner.members 
+    ON members.customer_id = sales.customer_id
+WHERE sales.order_date >= members.join_date)
+
+SELECT 
+  cte_points.customer_id,
+  SUM(cte_points.points) points
+FROM cte_points
+GROUP BY 1
+```
+
+### Results
+
+| customer_id | points |
+| ----------- | ------ |
+| A           | 1020   |
+| B           | 440    |
+
+We can see that customer A has 1020 points and customer B had 440 points.
