@@ -149,6 +149,37 @@ Customers A and C both ordered ramen the most whereas customer B ordered all thr
 
 ## 6. Which item was purchased first by the customer after they became a member?
 
+### SQL Code 
+```sql
+WITH cte_ranking AS (
+  SELECT 
+    ROW_NUMBER() OVER (PARTITION BY members.customer_id ORDER BY sales.order_date) AS row_number,
+    members.customer_id,
+    menu.product_name
+  FROM dannys_diner.menu
+  JOIN dannys_diner.sales 
+    ON sales.product_id = menu.product_id
+  JOIN dannys_diner.members 
+    ON members.customer_id = sales.customer_id
+  WHERE sales.order_date > members.join_date
+)
+SELECT 
+  cte_ranking.customer_id,
+  cte_ranking.product_name
+FROM cte_ranking
+WHERE cte_ranking.row_number = 1;
+```
+
+### Results
+
+| customer_id | product_name |
+| ----------- | ------------ |
+| A           | ramen        |
+| B           | sushi        |
+
+We can see that customer A bought ramen first after being a member and customer B bought sushi. Customer C doesnt yet appear on the list because they aren't a member yet.
+
+
 ## 7. Which item was purchased just before the customer became a member?
 
 ## 8. What is the total items and amount spent for each member before they became a member?
