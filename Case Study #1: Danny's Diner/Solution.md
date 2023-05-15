@@ -12,6 +12,7 @@ Feel free to test these queries out [here.](https://www.db-fiddle.com/f/2rM8RAnq
 - [8. What is the total items and amount spent for each member before they became a member?](#8-what-is-the-total-items-and-amount-spent-for-each-member-before-they-became-a-member)
 - [9. If each $1 spent equates to 10 points and sushi has a 2x points multiplier - how many points would each customer have?](#9-if-each-1-spent-equates-to-10-points-and-sushi-has-a-2x-points-multiplier---how-many-points-would-each-customer-have)
 - [10. In the first week after a customer joins the program (including their join date) they earn 2x points on all items, not just sushi - how many points do customer A and B have at the end of January?](#10-in-the-first-week-after-a-customer-joins-the-program-including-their-join-date-they-earn-2x-points-on-all-items-not-just-sushi---how-many-points-do-customer-a-and-b-have-at-the-end-of-january)
+- [Bonus Questions](#bonus-questions)
 
 ## 1. What is the total amount each customer spent at the restaurant?
 ### SQL Code
@@ -313,3 +314,53 @@ ORDER BY 1;
 | B           | 440    |
 
 We can see that customer A has 1020 points and customer B had 440 points.
+
+## Bonus Questions
+
+### SQL Code
+
+sql```
+SELECT 
+    sales.customer_id,
+    TO_CHAR(sales.order_date, 'YYYY-MM-DD') order_date,
+    menu.product_name,
+    menu.price,
+    CASE
+      WHEN 
+        sales.order_date >= members.join_date
+      THEN 'Y'
+      ELSE 'N'
+    END AS member
+FROM dannys_diner.menu
+FULL OUTER JOIN dannys_diner.sales 
+    ON sales.product_id = menu.product_id
+FULL OUTER JOIN dannys_diner.members 
+    ON members.customer_id = sales.customer_id
+ORDER BY 1, 2
+```
+### Result
+
+| customer_id | order_date | product_name | price | member |
+| ----------- | ---------- | ------------ | ----- | ------ |
+| A           | 2021-01-01 | sushi        | 10    | N      |
+| A           | 2021-01-01 | curry        | 15    | N      |
+| A           | 2021-01-07 | curry        | 15    | Y      |
+| A           | 2021-01-10 | ramen        | 12    | Y      |
+| A           | 2021-01-11 | ramen        | 12    | Y      |
+| A           | 2021-01-11 | ramen        | 12    | Y      |
+| B           | 2021-01-01 | curry        | 15    | N      |
+| B           | 2021-01-02 | curry        | 15    | N      |
+| B           | 2021-01-04 | sushi        | 10    | N      |
+| B           | 2021-01-11 | sushi        | 10    | Y      |
+| B           | 2021-01-16 | ramen        | 12    | Y      |
+| B           | 2021-02-01 | ramen        | 12    | Y      |
+| C           | 2021-01-01 | ramen        | 12    | N      |
+| C           | 2021-01-01 | ramen        | 12    | N      |
+| C           | 2021-01-07 | ramen        | 12    | N      |
+
+### SQL Code
+
+
+
+
+
