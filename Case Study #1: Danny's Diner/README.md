@@ -8,6 +8,7 @@
 - [Entity Relationship Diagram](#entity-relationship-diagram)
 - [Example Datasets](#example-datasets)
 - [Case Study Questions](#case-study-questions)
+- [Bonus Questions](#bonus-questions)
 - [Solutions](Solution.md)
 
 
