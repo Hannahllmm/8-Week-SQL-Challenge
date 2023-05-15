@@ -52,6 +52,17 @@ The final members table captures the join_date when a customer_id joined the bet
 9. If each $1 spent equates to 10 points and sushi has a 2x points multiplier - how many points would each customer have?
 10. In the first week after a customer joins the program (including their join date) they earn 2x points on all items, not just sushi - how many points do customer A and B have at the end of January?
 
+## Bonus Questions
+
+Recreate the following table output using the available data:
+
+![image](https://github.com/Hannahllmm/8-Week-SQL-Challenge/assets/39679731/e8d25c36-1d44-4c76-b542-057f4af4e8cb)
+
+Danny also requires further information about the ranking of customer products, but he purposely does not need the ranking for non-member purchases so he expects null ranking values for the records when customers are not yet part of the loyalty program. Recreate this table:
+
+![image](https://github.com/Hannahllmm/8-Week-SQL-Challenge/assets/39679731/5aa30e31-4c74-4ea1-85e5-04409c76318d)
+
+
 ## Solutions
 
 My solutions can be found [here](Solution.md).
