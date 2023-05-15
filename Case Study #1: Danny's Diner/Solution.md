@@ -186,7 +186,44 @@ We can see that customer A bought ramen first after being a member and customer 
 
 ## 9. If each $1 spent equates to 10 points and sushi has a 2x points multiplier - how many points would each customer have?
 
+### SQL Code
+```sql
+WITH cte_points AS (
+SELECT 
+    *,
+    CASE
+        WHEN 
+            sales.product_id = 1 
+         THEN menu.price * 20
+         ELSE menu.price * 10
+    END AS points
+FROM dannys_diner.menu
+JOIN dannys_diner.sales 
+    ON sales.product_id = menu.product_id)
+
+SELECT 
+  cte_points.customer_id,
+  SUM(cte_points.points) points
+FROM cte_points
+GROUP BY 1
+Order by 1
+```
+
+### Results
+
+| customer_id | points |
+| ----------- | ------ |
+| A           | 860    |
+| B           | 940    |
+| C           | 360    |
+
+If these customers were all in the scheme from the start customer A would have 860 points, B would have 940 points and C would have 360 points.
+
+
 ## 10. In the first week after a customer joins the program (including their join date) they earn 2x points on all items, not just sushi - how many points do customer A and B have at the end of January?
+
+### SQL Code
+
 ```sql
 WITH cte_points AS (
 SELECT 
@@ -210,6 +247,7 @@ SELECT
   SUM(cte_points.points) points
 FROM cte_points
 GROUP BY 1
+ORDER BY 1;
 ```
 
 ### Results
