@@ -319,7 +319,7 @@ We can see that customer A has 1020 points and customer B had 440 points.
 
 ### SQL Code
 
-sql```
+```sql
 SELECT 
     sales.customer_id,
     TO_CHAR(sales.order_date, 'YYYY-MM-DD') order_date,
@@ -359,7 +359,54 @@ ORDER BY 1, 2
 | C           | 2021-01-07 | ramen        | 12    | N      |
 
 ### SQL Code
+```sql
+WITH cte_ranking AS (
+SELECT 
+    sales.customer_id,
+    TO_CHAR(sales.order_date, 'YYYY-MM-DD') AS order_date,
+    menu.product_name,
+    menu.price,
+    CASE
+        WHEN sales.order_date >= members.join_date THEN 'Y'
+        ELSE 'N'
+    END AS member  
+FROM dannys_diner.menu
+LEFT JOIN dannys_diner.sales 
+    ON sales.product_id = menu.product_id
+LEFT JOIN dannys_diner.members 
+    ON members.customer_id = sales.customer_id
+ORDER BY 1, 2)
 
+SELECT
+	*,
+	CASE
+    WHEN member = 'N' 
+   		THEN null 
+    	ELSE RANK() OVER (PARTITION BY customer_id, member ORDER BY order_date)
+    END AS ranking
+FROM cte_ranking;
+
+```
+
+### Result
+
+| customer_id | order_date | product_name | price | member | ranking |
+| ----------- | ---------- | ------------ | ----- | ------ | ------- |
+| A           | 2021-01-01 | sushi        | 10    | N      |         |
+| A           | 2021-01-01 | curry        | 15    | N      |         |
+| A           | 2021-01-07 | curry        | 15    | Y      | 1       |
+| A           | 2021-01-10 | ramen        | 12    | Y      | 2       |
+| A           | 2021-01-11 | ramen        | 12    | Y      | 3       |
+| A           | 2021-01-11 | ramen        | 12    | Y      | 3       |
+| B           | 2021-01-01 | curry        | 15    | N      |         |
+| B           | 2021-01-02 | curry        | 15    | N      |         |
+| B           | 2021-01-04 | sushi        | 10    | N      |         |
+| B           | 2021-01-11 | sushi        | 10    | Y      | 1       |
+| B           | 2021-01-16 | ramen        | 12    | Y      | 2       |
+| B           | 2021-02-01 | ramen        | 12    | Y      | 3       |
+| C           | 2021-01-01 | ramen        | 12    | N      |         |
+| C           | 2021-01-01 | ramen        | 12    | N      |         |
+| C           | 2021-01-07 | ramen        | 12    | N      |         |
 
 
 
