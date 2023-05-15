@@ -153,7 +153,7 @@ Customers A and C both ordered ramen the most whereas customer B ordered all thr
 ```sql
 WITH cte_ranking AS (
   SELECT 
-    ROW_NUMBER() OVER (PARTITION BY members.customer_id ORDER BY sales.order_date) AS row_number,
+    DENSE_RANK() OVER (PARTITION BY members.customer_id ORDER BY sales.order_date) AS row_number,
     members.customer_id,
     menu.product_name
   FROM dannys_diner.menu
@@ -213,6 +213,31 @@ WHERE cte_ranking.row_number = 1;
 Before becoming a member both customers bought sushi. Customer A also bought a curry on the last day he bought something before becoming a member. We cant be sure if customer A bought sushi and curry at the same time or different times the last they bought something before becoming a member.
 
 ## 8. What is the total items and amount spent for each member before they became a member?
+
+### SQL Code
+```sql
+SELECT 
+  members.customer_id,
+  COUNT(sales.product_id) total_items,
+  SUM(menu.price) amount_spent
+FROM dannys_diner.menu
+JOIN dannys_diner.sales 
+  ON sales.product_id = menu.product_id
+JOIN dannys_diner.members 
+  ON members.customer_id = sales.customer_id
+WHERE sales.order_date < members.join_date
+GROUP BY 1
+ORDER BY 1;
+```
+
+### Results
+
+| customer_id | total_items | amount_spent |
+| ----------- | ----------- | ------------ |
+| A           | 2           | 25           |
+| B           | 3           | 40           |
+
+Customer A bought 2 items totaling $25 and customer B bought 3 items totaling $40. Customer C will be added to the table once them become a member.
 
 ## 9. If each $1 spent equates to 10 points and sushi has a 2x points multiplier - how many points would each customer have?
 
