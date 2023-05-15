@@ -182,6 +182,36 @@ We can see that customer A bought ramen first after being a member and customer 
 
 ## 7. Which item was purchased just before the customer became a member?
 
+### SQL Code
+```sql
+WITH cte_ranking AS (
+  SELECT 
+    DENSE_RANK() OVER (PARTITION BY members.customer_id ORDER BY sales.order_date desc) AS row_number,
+    members.customer_id,
+    menu.product_name
+  FROM dannys_diner.menu
+  JOIN dannys_diner.sales 
+    ON sales.product_id = menu.product_id
+  JOIN dannys_diner.members 
+    ON members.customer_id = sales.customer_id
+  WHERE sales.order_date < members.join_date
+)
+SELECT 
+  cte_ranking.customer_id,
+  cte_ranking.product_name
+FROM cte_ranking
+WHERE cte_ranking.row_number = 1;
+```
+### Results
+
+| customer_id | product_name |
+| ----------- | ------------ |
+| A           | sushi        |
+| A           | curry        |
+| B           | sushi        |
+
+Before becoming a member both customers bought sushi. Customer A also bought a curry on the last day he bought something before becoming a member. We cant be sure if customer A bought sushi and curry at the same time or different times the last they bought something before becoming a member.
+
 ## 8. What is the total items and amount spent for each member before they became a member?
 
 ## 9. If each $1 spent equates to 10 points and sushi has a 2x points multiplier - how many points would each customer have?
