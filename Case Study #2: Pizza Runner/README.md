@@ -6,7 +6,6 @@
 - [Introduction](#introduction)
 - [Problem Statement](#problem-statement)
 - [Entity Relationship Diagram](#entity-relationship-diagram)
-- [Example Datasets](#example-datasets)
 - [Case Study Questions](#case-study-questions)
 - [Bonus Questions](#bonus-questions)
 - [Solutions](Solution.md)
@@ -29,49 +28,6 @@ Danny has prepared for us an entity relationship diagram of his database design 
 
 ## Entity Relationship Diagram
 ![image](https://github.com/Hannahllmm/8-Week-SQL-Challenge/assets/39679731/dfcf3021-1236-495a-b429-caaad0e883e5)
-
-## Example Datasets
-All datasets exist within the pizza_runner database schema - be sure to include this reference within your SQL scripts as you start exploring the data and answering the case study questions.
-
-### Table 1: runners
-The runners table shows the registration_date for each new runner
-
-![image](https://github.com/Hannahllmm/8-Week-SQL-Challenge/assets/39679731/9c0c8dc1-efcc-4cc7-94a2-ce174aecaab9)
-
-### Table 2: customer_orders
-Customer pizza orders are captured in the customer_orders table with 1 row for each individual pizza that is part of the order.
-
-The pizza_id relates to the type of pizza which was ordered whilst the exclusions are the ingredient_id values which should be removed from the pizza and the extras are the ingredient_id values which need to be added to the pizza.
-
-Note that customers can order multiple pizzas in a single order with varying exclusions and extras values even if the pizza is the same type!
-
-The exclusions and extras columns will need to be cleaned up before using them in your queries.
-
-![image](https://github.com/Hannahllmm/8-Week-SQL-Challenge/assets/39679731/eafd6797-2d3b-429e-a8c4-1671b3bfac5a)
-
-### Table 3: runner_orders
-After each orders are received through the system - they are assigned to a runner - however not all orders are fully completed and can be cancelled by the restaurant or the customer.
-
-The pickup_time is the timestamp at which the runner arrives at the Pizza Runner headquarters to pick up the freshly cooked pizzas. The distance and duration fields are related to how far and long the runner had to travel to deliver the order to the respective customer.
-
-There are some known data issues with this table so be careful when using this in your queries - make sure to check the data types for each column in the schema SQL!
-
-![image](https://github.com/Hannahllmm/8-Week-SQL-Challenge/assets/39679731/a226c7e1-81f0-487f-a13f-49b4ff13df59)
-
-### Table 4: pizza_names
-At the moment - Pizza Runner only has 2 pizzas available the Meat Lovers or Vegetarian!
-
-![image](https://github.com/Hannahllmm/8-Week-SQL-Challenge/assets/39679731/dc23005a-6365-4118-8fc0-5b2b7ef4cba0)
-
-### Table 5: pizza_recipes
-Each pizza_id has a standard set of toppings which are used as part of the pizza recipe.
-
-![image](https://github.com/Hannahllmm/8-Week-SQL-Challenge/assets/39679731/2a6d0362-4ac8-412d-829b-6850b197d9cd)
-
-### Table 6: pizza_toppings
-This table contains all of the topping_name values with their corresponding topping_id value
-
-![image](https://github.com/Hannahllmm/8-Week-SQL-Challenge/assets/39679731/5bdd5011-d644-4272-873a-10cf7b1caba4)
 
 ## Case Study Questions
 ### A. Pizza Metrics
