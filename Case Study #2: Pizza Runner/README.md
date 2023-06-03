@@ -6,6 +6,7 @@
 - [Introduction](#introduction)
 - [Problem Statement](#problem-statement)
 - [Entity Relationship Diagram](#entity-relationship-diagram)
+- [Data Cleansing](#data-cleansing)
 - [Case Study Questions](#case-study-questions)
 - [Bonus Questions](#bonus-questions)
 - [Solutions](Solution.md)
@@ -28,6 +29,32 @@ Danny has prepared for us an entity relationship diagram of his database design 
 
 ## Entity Relationship Diagram
 ![image](https://github.com/Hannahllmm/8-Week-SQL-Challenge/assets/39679731/dfcf3021-1236-495a-b429-caaad0e883e5)
+
+## Data Cleansing
+There was an issue with null values in the customer_orders table. I looked at the distinct values in both the exclusions and extras fields to determine which values needed changing. I then created a tempory table that could be used in the the analysis where all null values were infact null. 
+
+```sql
+
+CREATE TEMPORARY TABLE cleaned_customer_orders AS
+  SELECT
+	order_id,
+	customer_id, 
+	pizza_id, 
+	CASE
+	    WHEN exclusions = '' THEN NULL
+		WHEN exclusions = 'null' THEN NULL
+	ELSE exclusions
+	END AS exclusions,
+	CASE
+		WHEN extras = '' THEN NULL
+		WHEN extras = 'NaN' THEN NULL
+        WHEN extras = 'null' THEN NULL
+	ELSE extras
+	END AS extras,
+	order_time
+  FROM pizza_runner.customer_orders;
+  
+```
 
 ## Case Study Questions
 ### A. Pizza Metrics
