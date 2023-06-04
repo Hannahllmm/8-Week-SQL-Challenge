@@ -85,8 +85,40 @@ ORDER BY customer_id;
 ```
 ![image](https://github.com/Hannahllmm/8-Week-SQL-Challenge/assets/39679731/c6446745-1e15-4167-82f6-8f848af686e1)
 
-### What was the maximum number of pizzas delivered in a single order?
+### What was the maximum number of pizzas in a single order?
+We can take a count of the order_id in the customer orders, then by ordering by the count and setting the limit to 1 we can see that the maximum number of pizzas delivered in a single order is 3.
+
+```sql
+SELECT 
+COUNT(order_id) as number_of_pizzas
+FROM cleaned_customer_orders
+GROUP BY order_id
+ORDER BY number_of_pizzas DESC
+LIMIT 1;
+```
+
 ### For each customer, how many delivered pizzas had at least 1 change and how many had no changes?
+This is where our clean up of the customer orders comes in handy. We can assign a value os 1 to the instances where changes were made and 0 to the rest then sum this to calcualte the number of pizzas ordered with at least one change. The same process can be done to calculate the pizzas with no changes. 
+
+```sql
+SELECT
+  customer_id,
+  SUM(
+    CASE
+      WHEN exclusions IS NOT NULL OR extras IS NOT NULL THEN 1
+      ELSE 0
+    END
+  ) AS at_least_1_change,
+  SUM(
+    CASE
+      WHEN exclusions IS NULL AND extras IS NULL THEN 1
+      ELSE 0
+    END
+  ) AS no_changes
+FROM cleaned_customer_orders AS t1
+GROUP BY customer_id
+ORDER BY customer_id;
+```
 ### How many pizzas were delivered that had both exclusions and extras?
 ### What was the total volume of pizzas ordered for each hour of the day?
 ### What was the volume of orders for each day of the week?
