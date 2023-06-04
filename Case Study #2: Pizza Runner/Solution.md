@@ -10,6 +10,10 @@ Feel free to test these queries out [here.](https://www.db-fiddle.com/f/7VcQKQws
 
 ## A. Pizza Metrics
 ### How many pizzas were ordered?
+This is a simple question with a simple answer. We can just take a count of all the rows in the pizza_orders table.
+
+
+
 ### How many unique customer orders were made?
 ### How many successful orders were delivered by each runner?
 ### How many of each type of pizza was delivered?
