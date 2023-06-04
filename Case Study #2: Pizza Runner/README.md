@@ -35,7 +35,7 @@ We can see that there is an issue with null values being inconsistent in the cus
 
 ![image](https://github.com/Hannahllmm/8-Week-SQL-Challenge/assets/39679731/92597c3c-fea1-4dbc-8017-48977a8b1741)
 
-I looked at the distinct values in both the exclusions and extras fields to determine all the variations of null that needed changing. I then created a tempory table that could be used in the the analysis where all null values were infact null. 
+Looking at the distinct values in both the exclusions and extras fields we can determine all the variations of null that needed changing. We can then create a tempory table that could be used in the the analysis where all null values are infact null. 
 
 ```sql
 
@@ -59,7 +59,34 @@ CREATE TEMPORARY TABLE cleaned_customer_orders AS
   FROM pizza_runner.customer_orders;
   
 ```
-Next I looked at the 
+Next we will looked at the runner_orders table to see what needs sorting out.
+
+![image](https://github.com/Hannahllmm/8-Week-SQL-Challenge/assets/39679731/27fb2b4b-9134-4f8a-864c-cb682e1286f6)
+
+Again we can look at the discinct values in each column to help see what needs changing. In this case we will edit the distance field so that all values are numerical rather than containing text. We will add the measure of distance to the title of the field to avoid confusion. The same can be done to the duration field so all values are numerical. Lastly the cancellation field needs editing so all null values are in fact null. We then need to change the data types of the distance and duration to a float and integer respectively so we can perform numerical calculations.
+
+```sql
+CREATE TEMPORARY TABLE cleaned_runner_orders AS
+SELECT
+    order_id,
+    runner_id,
+    pickup_time,
+    CASE
+        WHEN distance = 'null' THEN null
+        ELSE CAST(REGEXP_REPLACE(distance, '[a-z]+', '') AS FLOAT)
+    END AS distance_km,
+    CASE
+        WHEN duration = 'null' THEN null
+        ELSE CAST(REGEXP_REPLACE(duration, '[a-z]+', '') AS INTEGER)
+    END AS duration_mins,
+    CASE
+        WHEN cancellation = '' THEN null
+        WHEN cancellation = 'null' THEN null
+        ELSE cancellation
+    END AS cancellation
+FROM pizza_runner.runner_orders;
+```
+
 
 ## Case Study Questions
 ### A. Pizza Metrics
