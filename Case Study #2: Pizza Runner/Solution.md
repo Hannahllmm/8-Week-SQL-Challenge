@@ -10,11 +10,31 @@ Feel free to test these queries out [here.](https://www.db-fiddle.com/f/7VcQKQws
 
 ## A. Pizza Metrics
 ### How many pizzas were ordered?
-This is a simple question with a simple answer. We can just take a count of all the rows in the pizza_orders table.
+This is a simple question with a simple answer. We can just take a count of all the rows in the pizza_orders table. We're assuming we want a count of all pizzas ordered regardless of whether they were cancelled.
 
+```sql
+SELECT 
+COUNT(*)
+FROM cleaned_customer_orders;
+```
+![image](https://github.com/Hannahllmm/8-Week-SQL-Challenge/assets/39679731/2e064f16-e1a6-42a7-ac0f-e3930bac4a8e)
 
+There were 14 pizzas ordered.
 
 ### How many unique customer orders were made?
+We can count the distinct values in customer_id in the customer_orders table.
+
+```sql
+SELECT 
+COUNT(DISTINCT customer_id)
+FROM cleaned_customer_orders;
+```
+
+![image](https://github.com/Hannahllmm/8-Week-SQL-Challenge/assets/39679731/6dc46c24-0870-4fed-ab47-d678eff8389c)
+
+There are 5 customers.
+
+
 ### How many successful orders were delivered by each runner?
 ### How many of each type of pizza was delivered?
 ### How many Vegetarian and Meatlovers were ordered by each customer?
