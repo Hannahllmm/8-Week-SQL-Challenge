@@ -31,7 +31,11 @@ Danny has prepared for us an entity relationship diagram of his database design 
 ![image](https://github.com/Hannahllmm/8-Week-SQL-Challenge/assets/39679731/dfcf3021-1236-495a-b429-caaad0e883e5)
 
 ## Data Cleansing
-There was an issue with null values in the customer_orders table. I looked at the distinct values in both the exclusions and extras fields to determine which values needed changing. I then created a tempory table that could be used in the the analysis where all null values were infact null. 
+We can see that there is an issue with null values being inconsistent in the customer_orders table.
+
+![image](https://github.com/Hannahllmm/8-Week-SQL-Challenge/assets/39679731/92597c3c-fea1-4dbc-8017-48977a8b1741)
+
+I looked at the distinct values in both the exclusions and extras fields to determine all the variations of null that needed changing. I then created a tempory table that could be used in the the analysis where all null values were infact null. 
 
 ```sql
 
@@ -55,6 +59,7 @@ CREATE TEMPORARY TABLE cleaned_customer_orders AS
   FROM pizza_runner.customer_orders;
   
 ```
+Next I looked at the 
 
 ## Case Study Questions
 ### A. Pizza Metrics
