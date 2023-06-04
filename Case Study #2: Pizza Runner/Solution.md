@@ -96,6 +96,8 @@ GROUP BY order_id
 ORDER BY number_of_pizzas DESC
 LIMIT 1;
 ```
+![image](https://github.com/Hannahllmm/8-Week-SQL-Challenge/assets/39679731/d9aaba0b-8dca-4435-93c8-5da2ffe9b888)
+
 
 ### For each customer, how many delivered pizzas had at least 1 change and how many had no changes?
 This is where our clean up of the customer orders comes in handy. We can assign a value os 1 to the instances where changes were made and 0 to the rest then sum this to calcualte the number of pizzas ordered with at least one change. The same process can be done to calculate the pizzas with no changes. 
@@ -119,10 +121,49 @@ FROM cleaned_customer_orders AS t1
 GROUP BY customer_id
 ORDER BY customer_id;
 ```
-### How many pizzas were delivered that had both exclusions and extras?
-### What was the total volume of pizzas ordered for each hour of the day?
-### What was the volume of orders for each day of the week?
 
+![image](https://github.com/Hannahllmm/8-Week-SQL-Challenge/assets/39679731/6e333093-259a-4fea-a85a-6196b27ddc17)
+
+### How many pizzas were had both exclusions and extras?
+Again, with the cleaned version of the customers orders table this is a very simple question to answer. We can just count the orders where both the exclusions and extras are not null.
+
+```sql
+SELECT
+  COUNT(*)
+FROM cte_cleaned_customer_orders
+WHERE exclusions IS NULL OR extras IS NOT NULL;
+```
+
+![image](https://github.com/Hannahllmm/8-Week-SQL-Challenge/assets/39679731/3b40c780-7e78-4490-8990-b4bd374520e5)
+
+There were 2 pizzas that had both exclusions and extras.
+
+### What was the total volume of pizzas ordered for each hour of the day?
+We can answer this by taking the hour from the order_time after casting it to a timestamp and taking a count of the orders for each hour. 
+
+```sql
+SELECT
+DATE_PART('hour', order_time::TIMESTAMP) AS hour_of_day,
+	COUNT(order_id) AS pizza_count	
+FROM cleaned_customer_orders
+GROUP BY hour_of_day
+ORDER BY hour_of_day;
+```
+![image](https://github.com/Hannahllmm/8-Week-SQL-Challenge/assets/39679731/884bc185-fe79-4bc8-a3a4-f4f1131e522d)
+
+### What was the volume of orders for each day of the week?
+To answer this we can first use the TO_CHAR function to format the order_time as just the day of teh week. We can then use the DATE_PART to extract the day of the week as a number to order the table correctly.
+
+```sql
+SELECT
+  TO_CHAR(order_time, 'day') AS day_of_week,
+  COUNT(order_id) AS pizza_count
+FROM cleaned_customer_orders
+GROUP BY day_of_week, DATE_PART('dow', order_time)
+ORDER BY DATE_PART('dow', order_time);
+```
+
+![image](https://github.com/Hannahllmm/8-Week-SQL-Challenge/assets/39679731/62f2cd94-3f97-4f53-9abf-bc564f6fb3b8)
 
 ## B. Runner and Customer Experience
 ### How many runners signed up for each 1 week period? (i.e. week starts 2021-01-01)
