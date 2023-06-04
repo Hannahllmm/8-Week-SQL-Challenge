@@ -21,7 +21,7 @@ FROM cleaned_customer_orders;
 
 There were 14 pizzas ordered.
 
-### How many unique customer orders were made?
+### How many unique customers are there?
 We can count the distinct values in customer_id in the customer_orders table.
 
 ```sql
@@ -34,10 +34,57 @@ FROM cleaned_customer_orders;
 
 There are 5 customers.
 
-
 ### How many successful orders were delivered by each runner?
+We can take the runner_id and a count of the order_id where the cancellation field is null.
+
+```SQL
+SELECT
+  runner_id,
+  COUNT(order_id) AS successful_orders
+FROM cleaned_runner_orders
+WHERE cancellation IS NULL
+GROUP BY runner_id
+ORDER BY runner_id;
+```
+![image](https://github.com/Hannahllmm/8-Week-SQL-Challenge/assets/39679731/8c2bc60a-55b2-4a45-9b56-9f1aca82d942)
+
+We can see that runner 1 delivered 4 succesful orders, runner 2 delivered 3 and runner 3 delivered 1.
+
 ### How many of each type of pizza was delivered?
+We can join the cleaned customer and runners orders table with the pizza_names table where the order wasn't cancelled to count the number of each type of pizzas delivered.
+
+```sql
+SELECT
+  t2.pizza_name,
+  COUNT(t1.*) AS delivered_pizza_count
+FROM cleaned_customer_orders AS t1
+LEFT JOIN pizza_runner.pizza_names AS t2
+  ON t1.pizza_id = t2.pizza_id
+LEFT JOIN cleaned_runner_orders AS t3
+  ON t1.order_id = t3.order_id
+WHERE t3.cancellation IS NULL
+GROUP BY t2.pizza_name
+ORDER BY t2.pizza_name;
+```
+![image](https://github.com/Hannahllmm/8-Week-SQL-Challenge/assets/39679731/11f3c001-e19c-4d05-a773-f4d25ba59bb2)
+
+There were 9 meat and 3 veggie pizzas delivered.
+
+
 ### How many Vegetarian and Meatlovers were ordered by each customer?
+We could just add in the customer_id to the query above to get the answer. However we want this to be as easy as possible for others to interpret the data. So instead we'll create two count columns for each type of pizza. 
+
+```sql
+SELECT
+  customer_id,
+  SUM(CASE WHEN pizza_id = 1 THEN 1 ELSE 0 END) AS meatlovers,
+  SUM(CASE WHEN pizza_id = 2 THEN 1 ELSE 0 END) AS vegetarian
+FROM cleaned_customer_orders
+GROUP BY customer_id
+ORDER BY customer_id;
+```
+![image](https://github.com/Hannahllmm/8-Week-SQL-Challenge/assets/39679731/c6446745-1e15-4167-82f6-8f848af686e1)
+
 ### What was the maximum number of pizzas delivered in a single order?
 ### For each customer, how many delivered pizzas had at least 1 change and how many had no changes?
 ### How many pizzas were delivered that had both exclusions and extras?
