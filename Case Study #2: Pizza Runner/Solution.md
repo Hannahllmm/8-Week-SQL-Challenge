@@ -178,6 +178,9 @@ GROUP BY registration_week
 ORDER BY registration_week;
 ```
 
+![image](https://github.com/Hannahllmm/8-Week-SQL-Challenge/assets/39679731/a7621b4d-3d29-4668-b5ff-76025369376b)
+
+
 ### What was the average time in minutes it took for each runner to arrive at the Pizza Runner HQ to pickup the order?
 We can use the AGE function to calculate the time between the pick up and the order time. We can then use the DATE_PART function to calculate how many minutes that is. It's also important to use the DISTINCT function as there are duplicates when more than one pizza is ordered in one order.
 
@@ -198,9 +201,33 @@ SELECT
 FROM cte_pickup_minutes
 GROUP BY runner_id
 ```
+![image](https://github.com/Hannahllmm/8-Week-SQL-Challenge/assets/39679731/4b812e30-c611-4a1e-b037-b4785d5f377c)
 
 
 ### Is there any relationship between the number of pizzas and how long the order takes to prepare?
+We only have a small dataset to lok at however it does look like the more pizzas are ordered the longer it takes. We can edit our previous query to answer this question. We can remove the DISTINCT function and add in a count of the pizzas ordered. 
+
+```sql
+WITH cte_pickup_minutes AS (
+  SELECT
+    t1.order_id,
+    t1.runner_id,
+    DATE_PART('minutes', AGE(t1.pickup_time::TIMESTAMP, t2.order_time))::INTEGER AS pickup_minutes
+  FROM pizza_runner.runner_orders AS t1
+  INNER JOIN pizza_runner.customer_orders AS t2
+    ON t1.order_id = t2.order_id
+  WHERE t1.pickup_time != 'null'
+)
+SELECT
+  order_id,
+  COUNT(order_id) pizzas,
+  ROUND(AVG(pickup_minutes),0) AS avg_pickup_minutes
+FROM cte_pickup_minutes
+GROUP BY order_id
+ORDER BY pizzas;
+```
+![image](https://github.com/Hannahllmm/8-Week-SQL-Challenge/assets/39679731/eccd877f-dc07-4e45-8b65-9a1a8876094f)
+
 ### What was the average distance travelled for each customer?
 ### What was the difference between the longest and shortest delivery times for all orders?
 ### What was the average speed for each runner for each delivery and do you notice any trend for these values?
