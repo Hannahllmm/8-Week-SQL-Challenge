@@ -3,7 +3,7 @@ Feel free to test these queries out [here.](https://www.db-fiddle.com/f/7VcQKQws
 
 ## Table of Contents
 - [A. Pizza Metrics](#a-pizza-metrics)
-- [B. Runner and Customer Experience](b-runner-and-customer-experience)
+- [B. Runner and Customer Experience](#b-runner-and-customer-experience)
 - [C. Ingredient Optimisation](#c-ingredient-optimisation)
 - [D. Pricing and Ratings](#d-pricing-and-ratings)
 - [E. Bonus Questions](#e-bonus-questions)
