@@ -167,7 +167,39 @@ ORDER BY DATE_PART('dow', order_time);
 
 ## B. Runner and Customer Experience
 ### How many runners signed up for each 1 week period? (i.e. week starts 2021-01-01)
+We can use the DATE_TRUNC function to truncate the registration_date to the nearest week. We can also use the To_CHAR funtion to remove the timestamp for an easier to read format.
+
+```sql
+SELECT
+  TO_CHAR(DATE_TRUNC('week', registration_date), 'YYYY-MM-DD') AS registration_week,
+  COUNT(*) AS signups
+FROM pizza_runner.runners
+GROUP BY registration_week
+ORDER BY registration_week;
+```
+
 ### What was the average time in minutes it took for each runner to arrive at the Pizza Runner HQ to pickup the order?
+We can use the AGE function to calculate the time between the pick up and the order time. We can then use the DATE_PART function to calculate how many minutes that is. It's also important to use the DISTINCT function as there are duplicates when more than one pizza is ordered in one order.
+
+```sql
+WITH cte_pickup_minutes AS (
+  SELECT DISTINCT
+    t1.order_id,
+    t1.runner_id,
+    DATE_PART('minutes', AGE(t1.pickup_time::TIMESTAMP, t2.order_time))::INTEGER AS pickup_minutes
+  FROM pizza_runner.runner_orders AS t1
+  INNER JOIN pizza_runner.customer_orders AS t2
+    ON t1.order_id = t2.order_id
+  WHERE t1.pickup_time != 'null'
+)
+SELECT
+  runner_id,
+  ROUND(AVG(pickup_minutes), 3) AS avg_pickup_minutes
+FROM cte_pickup_minutes
+GROUP BY runner_id
+```
+
+
 ### Is there any relationship between the number of pizzas and how long the order takes to prepare?
 ### What was the average distance travelled for each customer?
 ### What was the difference between the longest and shortest delivery times for all orders?
