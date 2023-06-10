@@ -229,6 +229,25 @@ ORDER BY pizzas;
 ![image](https://github.com/Hannahllmm/8-Week-SQL-Challenge/assets/39679731/eccd877f-dc07-4e45-8b65-9a1a8876094f)
 
 ### What was the average distance travelled for each customer?
+We need to be careful when handling the duplicated here.
+```sql
+WITH cte_customer_order_distances AS (
+SELECT DISTINCT
+  t1.customer_id,
+  t1.order_id,
+  t2.distance_km
+FROM cleaned_customer_orders AS t1
+JOIN cleaned_runner_orders AS t2
+  ON t1.order_id = t2.order_id)
+SELECT
+  customer_id,
+  AVG(distance_km) AS avg_distance
+FROM cte_customer_order_distances
+GROUP BY customer_id
+ORDER BY customer_id;
+```
+![image](https://github.com/Hannahllmm/8-Week-SQL-Challenge/assets/39679731/eb1cc25e-7905-4b49-95a9-b4ea4d83b603)
+
 ### What was the difference between the longest and shortest delivery times for all orders?
 ### What was the average speed for each runner for each delivery and do you notice any trend for these values?
 ### What is the successful delivery percentage for each runner?
