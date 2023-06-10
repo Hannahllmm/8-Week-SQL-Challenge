@@ -234,7 +234,6 @@ We need to be careful when handling the duplicated here.
 WITH cte_customer_order_distances AS (
 SELECT DISTINCT
   t1.customer_id,
-  t1.order_id,
   t2.distance_km
 FROM cleaned_customer_orders AS t1
 JOIN cleaned_runner_orders AS t2
@@ -249,6 +248,16 @@ ORDER BY customer_id;
 ![image](https://github.com/Hannahllmm/8-Week-SQL-Challenge/assets/39679731/eb1cc25e-7905-4b49-95a9-b4ea4d83b603)
 
 ### What was the difference between the longest and shortest delivery times for all orders?
+This is easy to answer after we cleaned the duration field in the runenr_orders table. We can just calculate the difference between the min and max. 
+
+```sql
+SELECT
+  MAX(t1.duration_mins)-MIN(t1.duration_mins)as max_difference
+FROM cleaned_runner_orders AS t1;
+```
+![image](https://github.com/Hannahllmm/8-Week-SQL-Challenge/assets/39679731/e28b6954-e206-4498-b847-23c420f144b5)
+
+
 ### What was the average speed for each runner for each delivery and do you notice any trend for these values?
 ### What is the successful delivery percentage for each runner?
 
