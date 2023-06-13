@@ -258,8 +258,26 @@ FROM cleaned_runner_orders AS t1;
 ![image](https://github.com/Hannahllmm/8-Week-SQL-Challenge/assets/39679731/e28b6954-e206-4498-b847-23c420f144b5)
 
 
-### What was the average speed for each runner for each delivery and do you notice any trend for these values?
+### What was the average speed for each runner for each delivery?
+```sql
+SELECT DISTINCT
+  order_id,
+  runner_id,
+  distance_km,
+  duration_mins,
+  ROUND((distance_km / duration_mins) * 60) AS speed
+FROM cleaned_runner_orders
+WHERE pickup_time != 'null'
+ORDER BY runner_id;
+```
+
+![image](https://github.com/Hannahllmm/8-Week-SQL-Challenge/assets/39679731/9d5a983a-a9e6-462b-9171-7c06e4033a5b)
+
+It's possible that runner 2 recorded the time wrong because their speed differers quite dramatically. Danny might want to investigate this.
+
 ### What is the successful delivery percentage for each runner?
+
+
 
 ## C. Ingredient Optimisation
 ### What are the standard ingredients for each pizza?
