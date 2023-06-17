@@ -277,7 +277,18 @@ It's possible that runner 2 recorded the time wrong because their speed differer
 
 ### What is the successful delivery percentage for each runner?
 
-
+```sql
+SELECT
+  runner_id,
+  ROUND(
+    100 * SUM(CASE WHEN pickup_time != 'null' THEN 1 ELSE 0 END) /
+    COUNT(*)
+  ) AS success_percentage
+FROM cleaned_runner_orders
+GROUP BY runner_id
+ORDER BY runner_id;
+```
+![image](https://github.com/Hannahllmm/8-Week-SQL-Challenge/assets/39679731/dde6320b-b564-423b-8d13-b13acd7e0963)
 
 ## C. Ingredient Optimisation
 ### What are the standard ingredients for each pizza?
