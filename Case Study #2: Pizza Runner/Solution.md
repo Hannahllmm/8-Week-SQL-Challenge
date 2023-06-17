@@ -292,6 +292,25 @@ ORDER BY runner_id;
 
 ## C. Ingredient Optimisation
 ### What are the standard ingredients for each pizza?
+```sql
+WITH cte_split_pizza_names AS (
+SELECT
+  pizza_id,
+  REGEXP_SPLIT_TO_TABLE(toppings, '[,\s]+')::INTEGER AS topping_id
+FROM pizza_runner.pizza_recipes
+)
+SELECT
+  pizza_id,
+  STRING_AGG(t2.topping_name::TEXT, ' , ') AS standard_ingredients
+FROM cte_split_pizza_names AS t1
+INNER JOIN pizza_runner.pizza_toppings AS t2
+  ON t1.topping_id = t2.topping_id
+GROUP BY pizza_id
+ORDER BY pizza_id;
+```
+
+![image](https://github.com/Hannahllmm/8-Week-SQL-Challenge/assets/39679731/e486d798-e3b9-4d1d-96c0-3427b319385f)
+
 ### What was the most commonly added extra?
 ### What was the most common exclusion?
 ### Generate an order item for each record in the customers_orders table in the format of  'Meat Lovers - Exclude Cheese, Bacon - Extra Mushroom, Peppers'
