@@ -312,7 +312,46 @@ ORDER BY pizza_id;
 ![image](https://github.com/Hannahllmm/8-Week-SQL-Challenge/assets/39679731/e486d798-e3b9-4d1d-96c0-3427b319385f)
 
 ### What was the most commonly added extra?
+```sql
+WITH cte_extras AS (
+SELECT
+  REGEXP_SPLIT_TO_TABLE(extras, '[,\s]+')::INTEGER AS topping_id
+FROM cleaned_customer_orders
+)
+SELECT
+  topping_name,
+  COUNT(*) AS extras_count
+FROM cte_extras
+INNER JOIN pizza_runner.pizza_toppings
+  ON cte_extras.topping_id = pizza_toppings.topping_id
+GROUP BY topping_name
+ORDER BY extras_count DESC;
+```
+
+![image](https://github.com/Hannahllmm/8-Week-SQL-Challenge/assets/39679731/d8a1aa6e-643d-4b75-b802-82af62246058)
+
+
 ### What was the most common exclusion?
+
+```sql
+WITH cte_exclusions AS (
+SELECT
+  REGEXP_SPLIT_TO_TABLE(exclusions, '[,\s]+')::INTEGER AS topping_id
+FROM cleaned_customer_orders
+)
+SELECT
+  topping_name,
+  COUNT(*) AS exclusions_count
+FROM cte_exclusions
+INNER JOIN pizza_runner.pizza_toppings
+  ON cte_exclusions.topping_id = pizza_toppings.topping_id
+GROUP BY topping_name
+ORDER BY exclusions_count DESC;
+```
+
+![image](https://github.com/Hannahllmm/8-Week-SQL-Challenge/assets/39679731/a7e82855-98e6-4d92-8157-ea1c9dfdd04e)
+
+
 ### Generate an order item for each record in the customers_orders table in the format of  'Meat Lovers - Exclude Cheese, Bacon - Extra Mushroom, Peppers'
 ### Generate an alphabetically ordered comma separated ingredient list for each pizza order from the customer_orders table and add a 2x in front of any relevant ingredients. For example: "Meat Lovers: 2xBacon, Beef, ... , Salami"
 ### What is the total quantity of each ingredient used in all delivered pizzas sorted by most frequent first?
