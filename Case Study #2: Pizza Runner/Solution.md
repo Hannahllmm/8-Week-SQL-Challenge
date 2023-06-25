@@ -353,6 +353,128 @@ ORDER BY exclusions_count DESC;
 
 
 ### Generate an order item for each record in the customers_orders table in the format of  'Meat Lovers - Exclude Cheese, Bacon - Extra Mushroom, Peppers'
+
+```sql
+ WITH cleaned_customer_orders AS (
+  SELECT
+    order_id,
+    customer_id,
+    pizza_id,
+	CASE
+	    WHEN exclusions = '' THEN NULL
+		WHEN exclusions = 'null' THEN NULL
+	ELSE exclusions
+	END AS exclusions,
+	CASE
+		WHEN extras = '' THEN NULL
+		WHEN extras = 'NaN' THEN NULL
+        WHEN extras = 'null' THEN NULL
+	ELSE extras
+	END AS extras,
+    order_time,
+    ROW_NUMBER() OVER () AS original_row_number
+  FROM pizza_runner.customer_orders),
+
+cte_extras_exclusions AS (
+    SELECT
+      order_id,
+      customer_id,
+      pizza_id,
+      REGEXP_SPLIT_TO_TABLE(exclusions, '[,\s]+')::INTEGER AS exclusions_topping_id,
+      REGEXP_SPLIT_TO_TABLE(extras, '[,\s]+')::INTEGER AS extras_topping_id,
+      order_time,
+      original_row_number
+    FROM cleaned_customer_orders
+  -- here we add back in the null extra/exclusion rows
+  UNION
+    SELECT
+      order_id,
+      customer_id,
+      pizza_id,
+      NULL AS exclusions_topping_id,
+      NULL AS extras_topping_id,
+      order_time,
+      original_row_number
+    FROM cleaned_customer_orders
+    WHERE exclusions IS NULL AND extras IS NULL),
+
+cte_complete_dataset AS (
+  SELECT
+    base.order_id,
+    base.customer_id,
+    base.pizza_id,
+    names.pizza_name,
+    base.order_time,
+    base.original_row_number,
+    STRING_AGG(exclusions.topping_name, ', ') AS exclusions,
+    STRING_AGG(extras.topping_name, ', ') AS extras
+  FROM cte_extras_exclusions AS base
+  INNER JOIN pizza_runner.pizza_names AS names
+    ON base.pizza_id = names.pizza_id
+  LEFT JOIN pizza_runner.pizza_toppings AS exclusions
+    ON base.exclusions_topping_id = exclusions.topping_id
+  LEFT JOIN pizza_runner.pizza_toppings AS extras
+    ON base.extras_topping_id = extras.topping_id
+  GROUP BY
+    base.order_id,
+    base.customer_id,
+    base.pizza_id,
+    names.pizza_name,
+    base.order_time,
+    base.original_row_number
+),
+cte_parsed_string_outputs AS (
+SELECT
+  order_id,
+  customer_id,
+  pizza_id,
+  order_time,
+  original_row_number,
+  pizza_name,
+  CASE WHEN exclusions IS NULL THEN '' ELSE ' - Exclude ' || exclusions END AS exclusions,
+  CASE WHEN extras IS NULL THEN '' ELSE ' - Extra ' || extras END AS extras
+FROM cte_complete_dataset
+),
+final_output AS (
+  SELECT
+    order_id,
+    customer_id,
+    pizza_id,
+    order_time,
+    original_row_number,
+    pizza_name || exclusions || extras AS order_item
+  FROM cte_parsed_string_outputs
+)
+SELECT
+  order_id,
+  customer_id,
+  pizza_id,
+  order_time,
+  order_item
+FROM final_output
+ORDER BY original_row_number;
+
+```
+
+| order_id | customer_id | pizza_id | order_time               | order_item                                                      |
+| -------- | ----------- | -------- | ------------------------ | --------------------------------------------------------------- |
+| 1        | 101         | 1        | 2020-01-01T18:05:02.000Z | Meatlovers                                                      |
+| 2        | 101         | 1        | 2020-01-01T19:00:52.000Z | Meatlovers                                                      |
+| 3        | 102         | 1        | 2020-01-02T23:51:23.000Z | Meatlovers                                                      |
+| 3        | 102         | 2        | 2020-01-02T23:51:23.000Z | Vegetarian                                                      |
+| 4        | 103         | 1        | 2020-01-04T13:23:46.000Z | Meatlovers - Exclude Cheese                                     |
+| 4        | 103         | 1        | 2020-01-04T13:23:46.000Z | Meatlovers - Exclude Cheese                                     |
+| 4        | 103         | 2        | 2020-01-04T13:23:46.000Z | Vegetarian - Exclude Cheese                                     |
+| 5        | 104         | 1        | 2020-01-08T21:00:29.000Z | Meatlovers - Extra Bacon                                        |
+| 6        | 101         | 2        | 2020-01-08T21:03:13.000Z | Vegetarian                                                      |
+| 7        | 105         | 2        | 2020-01-08T21:20:29.000Z | Vegetarian - Extra Bacon                                        |
+| 8        | 102         | 1        | 2020-01-09T23:54:33.000Z | Meatlovers                                                      |
+| 9        | 103         | 1        | 2020-01-10T11:22:59.000Z | Meatlovers - Exclude Cheese - Extra Chicken, Bacon              |
+| 10       | 104         | 1        | 2020-01-11T18:34:49.000Z | Meatlovers                                                      |
+| 10       | 104         | 1        | 2020-01-11T18:34:49.000Z | Meatlovers - Exclude BBQ Sauce, Mushrooms - Extra Bacon, Cheese |
+
+
+
 ### Generate an alphabetically ordered comma separated ingredient list for each pizza order from the customer_orders table and add a 2x in front of any relevant ingredients. For example: "Meat Lovers: 2xBacon, Beef, ... , Salami"
 ### What is the total quantity of each ingredient used in all delivered pizzas sorted by most frequent first?
 
