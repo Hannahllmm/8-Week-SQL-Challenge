@@ -712,8 +712,59 @@ ORDER BY topping_count DESC;
 
 ## D. Pricing and Ratings
 ### If a Meat Lovers pizza costs $12 and Vegetarian costs $10 and there were no charges for changes - how much money has Pizza Runner made so far if there are no delivery fees?
+```sql
+SELECT
+  SUM(
+    CASE
+      WHEN pizza_id = 1 THEN 12
+      WHEN pizza_id = 2 THEN 10
+      END
+  ) AS revenue
+FROM pizza_runner.customer_orders;
+```
+
+![image](https://github.com/Hannahllmm/8-Week-SQL-Challenge/assets/39679731/a113afed-0dd4-49ad-8171-448059408c5b)
+
+
 ### What if there was an additional $1 charge for any pizza extras?
+
+``sql
+SELECT
+  SUM(
+    CASE
+      WHEN pizza_id = 1 THEN 12
+      WHEN pizza_id = 2 THEN 10
+      END -
+    -- we can use CARDINALITY to find the length of array of extras
+    COALESCE(
+      CARDINALITY(REGEXP_SPLIT_TO_ARRAY(extras, '[,\s]+')),
+      1
+    )
+  ) AS cost
+FROM cleaned_customer_orders;
+```
+
+![image](https://github.com/Hannahllmm/8-Week-SQL-Challenge/assets/39679731/8d673573-b37f-41b7-ae37-7d27594a5ec4)
+
+
 ### The Pizza Runner team now wants to add an additional ratings system that allows customers to rate their runner, how would you design an additional table for this new dataset - generate a schema for this new table and insert your own data for ratings for each successful customer order between 1 to 5.
+
+We can add in a simple table to the schema that lists the order id's filtering out any orders that weren't delivered and then rate each one. Here we've just added in random ratings because we don't yet have the actual data.
+
+```sql
+DROP TABLE IF EXISTS pizza_runner.ratings;
+CREATE TABLE pizza_runner.ratings (
+  "order_id" INTEGER,
+  "rating" INTEGER
+);
+INSERT INTO pizza_runner.ratings
+SELECT
+  order_id,
+  FLOOR(1 + 5 * RANDOM()) AS rating
+FROM pizza_runner.runner_orders
+WHERE pickup_time IS NOT NULL;
+```
+
 ### Using your newly generated table - can you join all of the information together to form a table which has the following information for successful deliveries?
 - customer_id
 - order_id
@@ -725,7 +776,66 @@ ORDER BY topping_count DESC;
 - Delivery duration
 - Average speed
 - Total number of pizzas
+
+This is easy to create from the logic in previous queries.
+
+```sql
+SELECT
+    t2.customer_id,
+    t1.order_id,
+    t1.runner_id,
+    t3.rating,
+    t2.order_time,
+    t1.pickup_time,
+    DATE_PART('min', AGE(t1.pickup_time::TIMESTAMP, t2.order_time))::INTEGER AS pickup_minutes,
+    t1.duration_mins,
+    ROUND((t1.distance_km / t1.duration_mins) * 60) AS speed,
+    COUNT(t2.*) AS pizza_count
+  FROM cleaned_runner_orders AS t1
+  JOIN cleaned_customer_orders AS t2
+    ON t1.order_id = t2.order_id
+  JOIN pizza_runner.ratings AS t3
+    ON t2.order_id = t3.order_id
+  WHERE t1.pickup_time != 'null'
+  GROUP BY
+    t2.customer_id,
+    t1.order_id,
+    t1.runner_id,
+    t3.rating,
+    t2.order_time,
+    t1.pickup_time,
+    t2.order_time,
+    t1.duration_mins,
+    t1.distance_km
+  ORDER BY 
+  1,2
+```
+![image](https://github.com/Hannahllmm/8-Week-SQL-Challenge/assets/39679731/a8bbdadd-a3f8-4b3c-a495-ac8e434b01a7)
+
 ### If a Meat Lovers pizza was $12 and Vegetarian $10 fixed prices with no cost for extras and each runner is paid $0.30 per kilometre traveled - how much money does Pizza Runner have left over after these deliveries?
+```sql
+WITH cte_adjusted_runner_orders AS (
+ SELECT
+  t1.order_id,
+  t1.distance_km,
+  SUM(CASE WHEN t2.pizza_id = 1 THEN 1 ELSE 0 END) AS meatlovers_count,
+  SUM(CASE WHEN t2.pizza_id = 2 THEN 1 ELSE 0 END) AS vegetarian_count
+FROM cleaned_customer_orders AS t2
+JOIN cleaned_runner_orders AS t1
+  ON t1.order_id = t2.order_id 
+WHERE t1.pickup_time != 'null'
+GROUP BY 
+  t1.order_id,
+  t1.distance_km)
+
+SELECT
+SUM((12*meatlovers_count+
+10*vegetarian_count)-
+(distance_km*0.3)) AS leftover_revenue
+FROM 
+cte_adjusted_runner_orders;
+```
+![image](https://github.com/Hannahllmm/8-Week-SQL-Challenge/assets/39679731/5c3c0ce7-80d9-4811-8090-0478832a9d78)
 
 
 ## E. Bonus Questions
