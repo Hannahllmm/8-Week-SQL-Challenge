@@ -476,7 +476,239 @@ ORDER BY original_row_number;
 
 
 ### Generate an alphabetically ordered comma separated ingredient list for each pizza order from the customer_orders table and add a 2x in front of any relevant ingredients. For example: "Meat Lovers: 2xBacon, Beef, ... , Salami"
+
+```sql
+WITH cte_cleaned_customer_orders AS (
+  SELECT
+    order_id,
+    customer_id,
+    pizza_id,
+    CASE
+      WHEN exclusions = '' THEN NULL
+      WHEN exclusions = 'null' THEN NULL
+      ELSE exclusions
+    END AS exclusions,
+    CASE
+      WHEN extras = '' THEN NULL
+      WHEN extras = 'NaN' THEN NULL
+      WHEN extras = 'null' THEN NULL
+      ELSE extras
+    END AS extras,
+    order_time,
+    ROW_NUMBER() OVER () AS original_row_number
+  FROM pizza_runner.customer_orders
+),
+
+cte_regular_toppings AS (
+  SELECT
+    pizza_id,
+    REGEXP_SPLIT_TO_TABLE(toppings, '[,\s]+')::INTEGER AS topping_id
+  FROM pizza_runner.pizza_recipes
+),
+
+cte_base_toppings AS (
+  SELECT
+    cte_cleaned_customer_orders.order_id,
+    cte_cleaned_customer_orders.customer_id,
+    cte_cleaned_customer_orders.pizza_id,
+    cte_cleaned_customer_orders.order_time,
+    cte_cleaned_customer_orders.original_row_number,
+    cte_regular_toppings.topping_id
+  FROM cte_cleaned_customer_orders
+  LEFT JOIN cte_regular_toppings
+    ON cte_cleaned_customer_orders.pizza_id = cte_regular_toppings.pizza_id),
+
+cte_exclusions AS (
+  SELECT
+    order_id,
+    customer_id,
+    pizza_id,
+    order_time,
+    original_row_number,
+    REGEXP_SPLIT_TO_TABLE(exclusions, '[,\s]+')::INTEGER AS topping_id
+  FROM cte_cleaned_customer_orders
+  WHERE exclusions IS NOT NULL),
+
+cte_extras AS (
+  SELECT
+    order_id,
+    customer_id,
+    pizza_id,
+    order_time,
+    original_row_number,
+    REGEXP_SPLIT_TO_TABLE(extras, '[,\s]+')::INTEGER AS topping_id
+  FROM cte_cleaned_customer_orders
+  WHERE extras IS NOT NULL),
+
+cte_combined_orders AS (
+  SELECT * FROM cte_base_toppings
+  EXCEPT
+  SELECT * FROM cte_exclusions
+  UNION ALL
+  SELECT * FROM cte_extras),
+
+cte_joined_toppings AS (
+  SELECT
+    t1.order_id,
+    t1.customer_id,
+    t1.pizza_id,
+    t1.order_time,
+    t1.original_row_number,
+    t1.topping_id,
+    t2.pizza_name,
+    t3.topping_name,
+    COUNT(t1.*) AS topping_count
+  FROM cte_combined_orders AS t1
+  INNER JOIN pizza_runner.pizza_names AS t2
+    ON t1.pizza_id = t2.pizza_id
+  INNER JOIN pizza_runner.pizza_toppings AS t3
+    ON t1.topping_id = t3.topping_id
+  GROUP BY
+    t1.order_id,
+    t1.customer_id,
+    t1.pizza_id,
+    t1.order_time,
+    t1.original_row_number,
+    t1.topping_id,
+    t2.pizza_name,
+    t3.topping_name)
+
+SELECT
+  order_id,
+  pizza_name || ': ' ||
+  STRING_AGG(
+    CASE
+      WHEN topping_count > 1 THEN topping_count || 'x ' || topping_name
+      ELSE topping_name
+    END,
+    ', '
+  ) AS ingredients_list
+FROM cte_joined_toppings
+GROUP BY
+  order_id,
+  pizza_name,
+  original_row_number
+ORDER BY 
+  order_id;
+```
+
+| order_id | ingredients_list                                                                     |
+| -------- | ------------------------------------------------------------------------------------ |
+| 1        | Meatlovers: Bacon, BBQ Sauce, Beef, Cheese, Chicken, Mushrooms, Pepperoni, Salami    |
+| 2        | Meatlovers: Bacon, BBQ Sauce, Beef, Cheese, Chicken, Mushrooms, Pepperoni, Salami    |
+| 3        | Meatlovers: Bacon, BBQ Sauce, Beef, Cheese, Chicken, Mushrooms, Pepperoni, Salami    |
+| 3        | Vegetarian: Cheese, Mushrooms, Onions, Peppers, Tomatoes, Tomato Sauce               |
+| 4        | Meatlovers: Bacon, BBQ Sauce, Beef, Chicken, Mushrooms, Pepperoni, Salami            |
+| 4        | Meatlovers: Bacon, BBQ Sauce, Beef, Chicken, Mushrooms, Pepperoni, Salami            |
+| 4        | Vegetarian: Mushrooms, Onions, Peppers, Tomatoes, Tomato Sauce                       |
+| 5        | Meatlovers: 2x Bacon, BBQ Sauce, Beef, Cheese, Chicken, Mushrooms, Pepperoni, Salami |
+| 6        | Vegetarian: Cheese, Mushrooms, Onions, Peppers, Tomatoes, Tomato Sauce               |
+| 7        | Vegetarian: Bacon, Cheese, Mushrooms, Onions, Peppers, Tomatoes, Tomato Sauce        |
+| 8        | Meatlovers: Bacon, BBQ Sauce, Beef, Cheese, Chicken, Mushrooms, Pepperoni, Salami    |
+| 9        | Meatlovers: 2x Bacon, BBQ Sauce, Beef, 2x Chicken, Mushrooms, Pepperoni, Salami      |
+| 10       | Meatlovers: Bacon, BBQ Sauce, Beef, Cheese, Chicken, Mushrooms, Pepperoni, Salami    |
+| 10       | Meatlovers: 2x Bacon, Beef, 2x Cheese, Chicken, Pepperoni, Salami                    |
+
+
+
 ### What is the total quantity of each ingredient used in all delivered pizzas sorted by most frequent first?
+
+```sql
+WITH cte_cleaned_customer_orders AS (
+  SELECT
+    order_id,
+    customer_id,
+    pizza_id,
+    CASE
+      WHEN exclusions = '' THEN NULL
+      WHEN exclusions = 'null' THEN NULL
+      ELSE exclusions
+    END AS exclusions,
+    CASE
+      WHEN extras = '' THEN NULL
+      WHEN extras = 'NaN' THEN NULL
+      WHEN extras = 'null' THEN NULL
+      ELSE extras
+    END AS extras,
+    order_time,
+    ROW_NUMBER() OVER () AS original_row_number
+  FROM pizza_runner.customer_orders
+),
+
+cte_regular_toppings AS (
+  SELECT
+    pizza_id,
+    REGEXP_SPLIT_TO_TABLE(toppings, '[,\s]+')::INTEGER AS topping_id
+  FROM pizza_runner.pizza_recipes
+),
+
+cte_base_toppings AS (
+  SELECT
+    cte_cleaned_customer_orders.order_id,
+    cte_cleaned_customer_orders.customer_id,
+    cte_cleaned_customer_orders.pizza_id,
+    cte_cleaned_customer_orders.order_time,
+    cte_cleaned_customer_orders.original_row_number,
+    cte_regular_toppings.topping_id
+  FROM cte_cleaned_customer_orders
+  LEFT JOIN cte_regular_toppings
+    ON cte_cleaned_customer_orders.pizza_id = cte_regular_toppings.pizza_id),
+
+cte_exclusions AS (
+  SELECT
+    order_id,
+    customer_id,
+    pizza_id,
+    order_time,
+    original_row_number,
+    REGEXP_SPLIT_TO_TABLE(exclusions, '[,\s]+')::INTEGER AS topping_id
+  FROM cte_cleaned_customer_orders
+  WHERE exclusions IS NOT NULL),
+
+cte_extras AS (
+  SELECT
+    order_id,
+    customer_id,
+    pizza_id,
+    order_time,
+    original_row_number,
+    REGEXP_SPLIT_TO_TABLE(extras, '[,\s]+')::INTEGER AS topping_id
+  FROM cte_cleaned_customer_orders
+  WHERE extras IS NOT NULL),
+
+cte_combined_orders AS (
+  SELECT * FROM cte_base_toppings
+  EXCEPT
+  SELECT * FROM cte_exclusions
+  UNION ALL
+  SELECT * FROM cte_extras)
+
+
+ SELECT
+  t2.topping_name,
+  COUNT(*) AS topping_count
+FROM cte_combined_orders AS t1
+INNER JOIN pizza_runner.pizza_toppings AS t2
+  ON t1.topping_id = t2.topping_id
+GROUP BY t2.topping_name
+ORDER BY topping_count DESC;
+
+```
+
+| topping_name | topping_count |
+| ------------ | ------------- |
+| Bacon        | 14            |
+| Mushrooms    | 13            |
+| Chicken      | 11            |
+| Cheese       | 11            |
+| Pepperoni    | 10            |
+| Salami       | 10            |
+| Beef         | 10            |
+| BBQ Sauce    | 9             |
+| Tomato Sauce | 4             |
+| Onions       | 4             |
+| Tomatoes     | 4             |
+| Peppers      | 4             |
 
 ## D. Pricing and Ratings
 ### If a Meat Lovers pizza costs $12 and Vegetarian costs $10 and there were no charges for changes - how much money has Pizza Runner made so far if there are no delivery fees?
