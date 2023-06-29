@@ -728,7 +728,7 @@ FROM pizza_runner.customer_orders;
 
 ### What if there was an additional $1 charge for any pizza extras?
 
-``sql
+```sql
 SELECT
   SUM(
     CASE
