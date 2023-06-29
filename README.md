@@ -4,6 +4,7 @@ I'm currently working my way through the [8 week SQL Challenge](https://8weeksql
 ## Table of Contents
 
 - [Case Study #1: Danny's Diner](#case-study-1-dannys-diner)
+- [Case Study #2: Pizza Runner](#case-study-2-pizza-runner)
 
 ## Case Study #1: Danny's Diner
 
