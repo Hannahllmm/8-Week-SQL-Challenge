@@ -840,3 +840,23 @@ cte_adjusted_runner_orders;
 
 ## E. Bonus Questions
 ### If Danny wants to expand his range of pizzas - how would this impact the existing data design? Write an INSERT statement to demonstrate what would happen if a new Supreme pizza with all the toppings was added to the Pizza Runner menu?
+
+We can add in the following to the Schema SQL:
+```sql
+INSERT INTO pizza_names
+  ("pizza_id", "pizza_name")
+VALUES
+  (3, 'Supreme');
+  
+  
+INSERT INTO pizza_recipes
+  ("pizza_id", "toppings")
+VALUES
+  (3, (
+    SELECT STRING_AGG(topping_id::VARCHAR, ', ')
+    FROM pizza_runner.pizza_toppings
+  ));
+```
+
+Once thing to consider is some of our SQL queries will have to be edited to include the new pizza flavour. For example, when calculatinghow much money pizza runner has made we'd have to add in the price of the new pizza. If new pizzas are added and removed regularly this could become time consuming to keep editing the code. For this reason it would be better to add in another coloum to the pizza_names table to records the price of each pizza. This new column could then be used instead within the queriesso the queries won't need editing.
+
