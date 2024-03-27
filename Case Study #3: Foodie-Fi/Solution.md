@@ -33,7 +33,7 @@ Feel free to test these queries out [here.](https://www.db-fiddle.com/f/rHJhRrXy
 ### 11. How many customers downgraded from a pro monthly to a basic monthly plan in 2020?
 
 
-## C. Challenge Payment Question
+## C. Challenge Payment Questions
 The Foodie-Fi team wants you to create a new payments table for the year 2020 that includes amounts paid by each customer in the subscriptions table with the following requirements:
 
 monthly payments always occur on the same day of month as the original start_date of any monthly paid plan
