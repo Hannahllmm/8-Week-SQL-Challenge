@@ -8,6 +8,50 @@ Feel free to test these queries out [here.](https://www.db-fiddle.com/f/rHJhRrXy
 - [D. Outside The Box Questions](#d-outside-the-box-questions)
 
 ## A. Customer Journey
+```sql
+    SELECT 
+    	s.customer_id,
+        s.start_date,
+        p.plan_name,
+        p.price
+    FROM foodie_fi.plans AS p
+    LEFT JOIN foodie_fi.subscriptions AS s
+    ON p.plan_id = s.plan_id 
+    WHERE s.customer_id IN (1, 2, 11, 13, 15, 16, 18, 19)
+    ORDER BY 
+     s.customer_id,
+     s.start_date;
+```
+
+| customer_id | start_date               | plan_name     | price  |
+| ----------- | ------------------------ | ------------- | ------ |
+| 1           | 2020-08-01T00:00:00.000Z | trial         | 0.00   |
+| 1           | 2020-08-08T00:00:00.000Z | basic monthly | 9.90   |
+| 2           | 2020-09-20T00:00:00.000Z | trial         | 0.00   |
+| 2           | 2020-09-27T00:00:00.000Z | pro annual    | 199.00 |
+| 11          | 2020-11-19T00:00:00.000Z | trial         | 0.00   |
+| 11          | 2020-11-26T00:00:00.000Z | churn         |        |
+| 13          | 2020-12-15T00:00:00.000Z | trial         | 0.00   |
+| 13          | 2020-12-22T00:00:00.000Z | basic monthly | 9.90   |
+| 13          | 2021-03-29T00:00:00.000Z | pro monthly   | 19.90  |
+| 15          | 2020-03-17T00:00:00.000Z | trial         | 0.00   |
+| 15          | 2020-03-24T00:00:00.000Z | pro monthly   | 19.90  |
+| 15          | 2020-04-29T00:00:00.000Z | churn         |        |
+| 16          | 2020-05-31T00:00:00.000Z | trial         | 0.00   |
+| 16          | 2020-06-07T00:00:00.000Z | basic monthly | 9.90   |
+| 16          | 2020-10-21T00:00:00.000Z | pro annual    | 199.00 |
+| 18          | 2020-07-06T00:00:00.000Z | trial         | 0.00   |
+| 18          | 2020-07-13T00:00:00.000Z | pro monthly   | 19.90  |
+| 19          | 2020-06-22T00:00:00.000Z | trial         | 0.00   |
+| 19          | 2020-06-29T00:00:00.000Z | pro monthly   | 19.90  |
+| 19          | 2020-08-29T00:00:00.000Z | pro annual    | 199.00 |
+
+
+#### The journey of these 8 customers:
+
+1. This customer started with a free trial on the 1st August then downgraded to the basic plan
+2. This customer starter with a free trial on the 20th September then upgraded to a pro annual subscription
+11.  
 
 ## B. Data Analysis Questions
 ### 1. How many customers has Foodie-Fi ever had?
