@@ -70,8 +70,54 @@ Feel free to test these queries out [here.](https://www.db-fiddle.com/f/rHJhRrXy
 | 1000            |
 
 ### 2. What is the monthly distribution of trial plan start_date values for our dataset - use the start of the month as the group by value
+```sql
+    SELECT 
+        TO_CHAR(DATE_TRUNC('month',s.start_date),'month') AS "month",
+    	COUNT(DISTINCT s.customer_id) AS trial_plans
+    FROM foodie_fi.subscriptions AS s
+    WHERE s.plan_id = 0
+    GROUP BY DATE_TRUNC('month',s.start_date)
+    ORDER BY DATE_TRUNC('month',s.start_date);
+```
+
+| month     | trial_plans |
+| --------- | ----------- |
+| january   | 88          |
+| february  | 68          |
+| march     | 94          |
+| april     | 81          |
+| may       | 88          |
+| june      | 79          |
+| july      | 89          |
+| august    | 88          |
+| september | 87          |
+| october   | 79          |
+| november  | 75          |
+| december  | 84          |
+
+The monthly distribution is fairly even with March having the most trials and February the least.
 
 ### 3. What plan start_date values occur after the year 2020 for our dataset? Show the breakdown by count of events for each plan_name
+```sql
+    SELECT 
+         p.plan_name,
+         COUNT(*)  AS events 
+    FROM foodie_fi.plans AS p
+    LEFT JOIN foodie_fi.subscriptions AS s
+    ON p.plan_id = s.plan_id 
+    WHERE start_date >= '01-01-2021'
+    GROUP BY plan_name, s.plan_id
+    ORDER BY s.plan_id;
+```
+
+| plan_name     | events |
+| ------------- | ----- |
+| basic monthly | 8     |
+| pro monthly   | 60    |
+| pro annual    | 63    |
+| churn         | 71    |
+
+Here we filtered to only include the plans that happened on or after the 1st Jan 2021 and grouped by the plan and plan_id to count the events that happened.
 
 ### 4. What is the customer count and percentage of customers who have churned rounded to 1 decimal place?
 
