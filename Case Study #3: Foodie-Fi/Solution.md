@@ -49,12 +49,25 @@ Feel free to test these queries out [here.](https://www.db-fiddle.com/f/rHJhRrXy
 
 #### The journey of these 8 customers:
 
-1. This customer started with a free trial on the 1st August then downgraded to the basic plan
-2. This customer starter with a free trial on the 20th September then upgraded to a pro annual subscription
-11.  
+1. This customer started with a free trial on the 1st August then downgraded to the basic plan.
+2. This customer starter with a free trial on the 20th September then upgraded to a pro annual subscription.
+11. Again this customer started with a free trial on the 19th November. But then they cancelled the plan.
+13. This customer started with a free trial then after a week downgraded to a basic plan, then after a few months upgraded to the monthly pro.
+15. Started with a free trial and continued onto the pro monthly subscription then cancelled their subscription.
+16. Started with the free trial then downgraded to the monthly basic account, then after a few months upgraded to an annual pro licence.
+18. Started with a free trial then continued onto the pro monthly subscription.
+19. Started with the free trial then continued to the pro monthly before upgrading to the pro annual. 
 
 ## B. Data Analysis Questions
 ### 1. How many customers has Foodie-Fi ever had?
+``` sql
+    SELECT 
+    	COUNT(DISTINCT s.customer_id) as total_customers
+    FROM foodie_fi.subscriptions AS s;
+```
+| total_customers |
+| --------------- |
+| 1000            |
 
 ### 2. What is the monthly distribution of trial plan start_date values for our dataset - use the start of the month as the group by value
 
