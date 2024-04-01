@@ -120,6 +120,22 @@ The monthly distribution is fairly even with March having the most trials and Fe
 Here we filtered to only include the plans that happened on or after the 1st Jan 2021 and grouped by the plan and plan_id to count the events that happened.
 
 ### 4. What is the customer count and percentage of customers who have churned rounded to 1 decimal place?
+```sql
+    SELECT
+        COUNT(DISTINCT customer_id) as total_count,
+        SUM(CASE WHEN plan_id = 4 THEN 1 ELSE 0 END) AS churned_customers,
+        (100* (SUM(CASE WHEN plan_id = 4 THEN 1 ELSE 0 END)::float /
+            COUNT(DISTINCT customer_id)::float))::text || '%'
+            AS percentage_churned
+    FROM foodie_fi.subscriptions;
+```
+
+| total_count | churned_customers | percentage_churned |
+| ----------- | ----------------- | ------------------ |
+| 1000        | 307               | 30.7%              |
+
+Here we used SUM, CASE and WHEN to do conditional summations of the customers churned. In order to get the correct percentage we multiplied the ratio by 100 and both the denominator and numerator were converted to floats so that the percentage also came out as a float, we then converted this to text and added a percentage sign. 30.7% of the customers churned. 
+
 
 ### 5. How many customers have churned straight after their initial free trial - what percentage is this rounded to the nearest whole number?
 
