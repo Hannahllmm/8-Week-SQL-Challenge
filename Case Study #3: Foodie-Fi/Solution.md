@@ -138,6 +138,36 @@ Here we used SUM, CASE and WHEN to do conditional summations of the customers ch
 
 
 ### 5. How many customers have churned straight after their initial free trial - what percentage is this rounded to the nearest whole number?
+```sql
+WITH cte_churned_after_trial AS(
+SELECT s2.customer_id 
+FROM 
+    foodie_fi.subscriptions AS s1
+JOIN 
+    foodie_fi.subscriptions AS s2 ON s1.customer_id = s2.customer_id
+WHERE 
+    s1.plan_id = 0 
+    AND s2.plan_id = 4
+    AND s2.start_date - s1.start_date <= 7)
+   
+SELECT 
+	COUNT(DISTINCT cte.customer_id) AS churn_count,
+	(100* COUNT(DISTINCT cte.customer_id)::float /
+            COUNT(DISTINCT s.customer_id)::float)::text || '%'
+            AS percentage_churned
+FROM 
+	foodie_fi.subscriptions AS s
+LEFT JOIN 
+	cte_churned_after_trial AS cte
+    ON cte.customer_id = s.customer_id;
+```
+    
+| churn_count | percentage_churned |
+| ----------- | ------------------ |
+| 92          | 9.2%               |
+
+Here we created a cte that uses a join and filtering to list out the customers who churned straight after a trial. This table is then joined to the original subscriptions table and we use the same method as before to calculate the percentage. Another way we could have done this that may have been more effective would be to use PARTITION BY to rank the plans of each customer by start_date and look at the second plan that was subscribed to. This would remove the need to join the subscription table to itself. 
+
 
 ### 6. What is the number and percentage of customer plans after their initial free trial?
 
