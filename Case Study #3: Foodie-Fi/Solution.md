@@ -170,6 +170,38 @@ Here we created a cte that uses a join and filtering to list out the customers w
 
 
 ### 6. What is the number and percentage of customer plans after their initial free trial?
+```sql
+    WITH ranked_plans AS (
+      SELECT
+        customer_id,
+        plan_id,
+        ROW_NUMBER() OVER (
+          PARTITION BY customer_id
+          ORDER BY start_date ASC
+        ) AS plan_rank
+      FROM foodie_fi.subscriptions
+    )
+    SELECT
+    	plans.plan_id,
+        plans.plan_name,
+      COUNT(*) AS customers,
+      (100 * COUNT(*)::float / SUM(COUNT(*)::float) OVER ())::text || '%' AS percentage
+    FROM ranked_plans
+    JOIN foodie_fi.plans
+    	ON ranked_plans.plan_id = plans.plan_id
+    WHERE plan_rank = 2
+    GROUP BY plans.plan_id, plans.plan_name
+    ORDER BY plans.plan_id;
+```
+
+| plan_id | plan_name     | customers | percentage |
+| ------- | ------------- | --------- | ---------- |
+| 1       | basic monthly | 546       | 54.6%      |
+| 2       | pro monthly   | 325       | 32.5%      |
+| 3       | pro annual    | 37        | 3.7%       |
+| 4       | churn         | 92        | 9.2%       |
+
+Here we used the PARTITION BY method to rank the plans of each customer by start_date to look at what plan they moved onto after their initial free trial.
 
 ### 7. What is the customer count and percentage breakdown of all 5 plan_name values at 2020-12-31?
 
