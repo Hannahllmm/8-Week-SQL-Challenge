@@ -240,8 +240,35 @@ Here we used the PARTITION BY method to rank the plans of each customer by start
 We'ce used the same logic as the previous question but added a filter to the cte to only look at subscriptions from before 31/12/2020. We've also ordered the partition in descending order so that plans with rank 1 can be filtered, these are the current plans active at 31/12/202.
 
 ### 8. How many customers have upgraded to an annual plan in 2020?
+```sql
+    SELECT
+    	COUNT(DISTINCT customer_id) AS annual_customers
+    FROM foodie_fi.subscriptions
+    WHERE EXTRACT(YEAR FROM start_date) = 2020 AND plan_id = 3;
+```
 
-### 9. How many days on average does it take for a customer to an annual plan from the day they join Foodie-Fi?
+| annual_customers |
+| ---------------- |
+| 195              |
+
+All we needed to do here was add some filters to the subscriptions table and count the results. There were 195 customers that upgraded to annual subscriptions in 2020.
+
+### 9. How many days on average does it take for a customer to upgrade to an annual plan from the day they join Foodie-Fi?
+``sql
+    SELECT 
+    	AVG(pro_annual.start_date - trial.start_date)::int AS average_days
+    FROM foodie_fi.subscriptions AS trial
+    JOIN foodie_fi.subscriptions AS pro_annual 
+    	ON trial.customer_id = pro_annual.customer_id
+    WHERE trial.plan_id = 0 
+    AND pro_annual.plan_id = 3;
+```
+
+| average_days |
+| ------------ |
+| 105          |
+
+Here we joined the subscription table to itself to work out the average days between trial and pro annual subscription. On average it takes 105 for a customer to conver to an annual subscription.
 
 ### 10. Can you further breakdown this average value into 30 day periods (i.e. 0-30 days, 31-60 days etc)
 
