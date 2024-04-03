@@ -254,7 +254,7 @@ We'ce used the same logic as the previous question but added a filter to the cte
 All we needed to do here was add some filters to the subscriptions table and count the results. There were 195 customers that upgraded to annual subscriptions in 2020.
 
 ### 9. How many days on average does it take for a customer to upgrade to an annual plan from the day they join Foodie-Fi?
-``sql
+```sql
     SELECT 
     	AVG(pro_annual.start_date - trial.start_date)::int AS average_days
     FROM foodie_fi.subscriptions AS trial
