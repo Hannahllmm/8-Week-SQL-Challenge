@@ -204,6 +204,40 @@ Here we created a cte that uses a join and filtering to list out the customers w
 Here we used the PARTITION BY method to rank the plans of each customer by start_date to look at what plan they moved onto after their initial free trial.
 
 ### 7. What is the customer count and percentage breakdown of all 5 plan_name values at 2020-12-31?
+```sql
+    WITH ranked_plans AS (
+          SELECT
+            customer_id,
+            plan_id,
+            ROW_NUMBER() OVER (
+              PARTITION BY customer_id
+              ORDER BY start_date DESC
+            ) AS plan_rank
+          FROM foodie_fi.subscriptions
+          WHERE start_date <= '12-31-2020'
+        )
+        SELECT
+        	plans.plan_id,
+            plans.plan_name,
+          COUNT(*) AS customers,
+          (100 * COUNT(*)::float / SUM(COUNT(*)::float) OVER ())::text || '%' AS percentage
+        FROM ranked_plans
+        JOIN foodie_fi.plans
+        	ON ranked_plans.plan_id = plans.plan_id
+        WHERE plan_rank = 1
+        GROUP BY plans.plan_id, plans.plan_name
+        ORDER BY plans.plan_id;
+```
+
+| plan_id | plan_name     | customers | percentage |
+| ------- | ------------- | --------- | ---------- |
+| 0       | trial         | 19        | 1.9%       |
+| 1       | basic monthly | 224       | 22.4%      |
+| 2       | pro monthly   | 326       | 32.6%      |
+| 3       | pro annual    | 195       | 19.5%      |
+| 4       | churn         | 236       | 23.6%      |
+
+We'ce used the same logic as the previous question but added a filter to the cte to only look at subscriptions from before 31/12/2020. We've also ordered the partition in descending order so that plans with rank 1 can be filtered, these are the current plans active at 31/12/202.
 
 ### 8. How many customers have upgraded to an annual plan in 2020?
 
