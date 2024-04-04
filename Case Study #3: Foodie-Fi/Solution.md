@@ -332,7 +332,7 @@ We used the same query as the previous question to calculate the days it took to
 | --------------- |
 | 0               |
 
-We used a similar query to Question 9 but changed some of the conditions.
+We used a similar query to Question 9 but changed some of the conditions. There were no instances where people downgraded in 2020.
 
 ## C. Challenge Payment Questions
 The Foodie-Fi team wants you to create a new payments table for the year 2020 that includes amounts paid by each customer in the subscriptions table with the following requirements:
