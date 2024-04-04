@@ -271,9 +271,68 @@ All we needed to do here was add some filters to the subscriptions table and cou
 Here we joined the subscription table to itself to work out the average days between trial and pro annual subscription. On average it takes 105 for a customer to conver to an annual subscription.
 
 ### 10. Can you further breakdown this average value into 30 day periods (i.e. 0-30 days, 31-60 days etc)
+```sql
+    WITH 
+    annual_days AS (
+        SELECT 
+            pro_annual.customer_id,
+            (pro_annual.start_date - trial.start_date)::int AS days
+        FROM foodie_fi.subscriptions AS trial
+        JOIN foodie_fi.subscriptions AS pro_annual 
+            ON trial.customer_id = pro_annual.customer_id
+        WHERE trial.plan_id = 0 
+            AND pro_annual.plan_id = 3),
+    
+    breakdown_periods AS (
+        SELECT
+    		(annual_days.days / 30) * 30 + 1 || ' - ' || ((annual_days.days / 30) + 1) * 30 || ' days' 
+    			AS breakdown_period,
+            annual_days.customer_id
+        FROM annual_days)
+    
+    SELECT
+        breakdown_period,
+        COUNT(customer_id) AS customers
+    FROM breakdown_periods
+    GROUP BY breakdown_period
+    ORDER BY MIN(split_part(breakdown_period, ' - ', 1)::int);
+```
+
+| breakdown_period | customers |
+| ---------------- | --------- |
+| 1 - 30 days      | 48        |
+| 31 - 60 days     | 25        |
+| 61 - 90 days     | 33        |
+| 91 - 120 days    | 35        |
+| 121 - 150 days   | 43        |
+| 151 - 180 days   | 35        |
+| 181 - 210 days   | 27        |
+| 211 - 240 days   | 4         |
+| 241 - 270 days   | 5         |
+| 271 - 300 days   | 1         |
+| 301 - 330 days   | 1         |
+| 331 - 360 days   | 1         |
+
+We used the same query as the previous question to calculate the days it took to convert from a trial customer to an annual customer. We then used this to create a second cte breakdown_period where we converted each of the values from the previous query into a period. The days are slightly different to what the question asks for as 1-30 then 31-60 is less ambiguous. Finally this was used to create a table that counted the instances in each breakdown_period.
 
 ### 11. How many customers downgraded from a pro monthly to a basic monthly plan in 2020?
+```sql
+    SELECT 
+        	COUNT(DISTINCT pro_monthly.customer_id) AS downgrade_count
+        FROM foodie_fi.subscriptions AS pro_monthly
+        JOIN foodie_fi.subscriptions AS basic_monthly
+        	ON pro_monthly.customer_id = basic_monthly.customer_id
+        WHERE
+		pro_monthly.plan_id = 2
+        	AND basic_monthly.plan_id = 1
+            	AND pro_monthly.start_date < basic_monthly.start_date
+        	AND EXTRACT(YEAR FROM basic_monthly.start_date) = 2020;
+```
+| downgrade_count |
+| --------------- |
+| 0               |
 
+We used a similar query to Question 9 but changed some of the conditions.
 
 ## C. Challenge Payment Questions
 The Foodie-Fi team wants you to create a new payments table for the year 2020 that includes amounts paid by each customer in the subscriptions table with the following requirements:
