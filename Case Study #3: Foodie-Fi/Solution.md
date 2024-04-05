@@ -341,7 +341,444 @@ We used a similar query to Question 9 but changed some of the conditions. There 
 >* upgrades from pro monthly to pro annual are paid at the end of the current billing period and also starts at the end of the month period
 >* once a customer churns they will no longer make payments
 
-This is a complex question so we'll break it down. 
+This is a complex question so we'll break it down. We’ll start by analysing the data to understand what we need to do. Then to the final query will involve a few ctes which we’ll explain as we go along. Creating temporary tables would be preferable but because our dataset is so small it’s not needed.
+
+Firstly we use the LEAD windows function to find the next plan_id and start_date for each customer_id using the start_date as an order. We’ve filtered out where the plan_id is 0 because every customer starts with a trial plan. We’ve looked at an example set of customers to analyse their journey.
+```sql
+SELECT
+  customer_id,
+  plan_id,
+  start_date,
+  LEAD(plan_id) OVER (
+      PARTITION BY customer_id
+      ORDER BY start_date
+    ) AS lead_plan_id,
+  LEAD(start_date) OVER (
+      PARTITION BY customer_id
+      ORDER BY start_date
+    ) AS lead_start_date
+FROM foodie_fi.subscriptions
+WHERE DATE_PART('year', start_date) = 2020
+AND plan_id <> 0  -- Why do you think we need to remove these records?
+-- example customers
+AND customer_id IN (1, 2, 7, 11, 13, 15, 16, 18, 19, 25, 39);
+```
+
+| customer_id | plan_id | start_date               | lead_plan_id | lead_start_date          |
+| ----------- | ------- | ------------------------ | ------------ | ------------------------ |
+| 1           | 1       | 2020-08-08T00:00:00.000Z |              |                          |
+| 2           | 3       | 2020-09-27T00:00:00.000Z |              |                          |
+| 7           | 1       | 2020-02-12T00:00:00.000Z | 2            | 2020-05-22T00:00:00.000Z |
+| 7           | 2       | 2020-05-22T00:00:00.000Z |              |                          |
+| 11          | 4       | 2020-11-26T00:00:00.000Z |              |                          |
+| 13          | 1       | 2020-12-22T00:00:00.000Z |              |                          |
+| 15          | 2       | 2020-03-24T00:00:00.000Z | 4            | 2020-04-29T00:00:00.000Z |
+| 15          | 4       | 2020-04-29T00:00:00.000Z |              |                          |
+| 16          | 1       | 2020-06-07T00:00:00.000Z | 3            | 2020-10-21T00:00:00.000Z |
+| 16          | 3       | 2020-10-21T00:00:00.000Z |              |                          |
+| 18          | 2       | 2020-07-13T00:00:00.000Z |              |                          |
+| 19          | 2       | 2020-06-29T00:00:00.000Z | 3            | 2020-08-29T00:00:00.000Z |
+| 19          | 3       | 2020-08-29T00:00:00.000Z |              |                          |
+| 25          | 1       | 2020-05-17T00:00:00.000Z | 2            | 2020-06-16T00:00:00.000Z |
+| 25          | 2       | 2020-06-16T00:00:00.000Z |              |                          |
+| 39          | 1       | 2020-06-04T00:00:00.000Z | 2            | 2020-08-25T00:00:00.000Z |
+| 39          | 2       | 2020-08-25T00:00:00.000Z | 4            | 2020-09-10T00:00:00.000Z |
+| 39          | 4       | 2020-09-10T00:00:00.000Z |              |                          |
+
+Next we want to understand over the whole dataset what path users take. For this we will remove the filters from the table above and aggregate by the plan_id and lead_id.
+```sql
+WITH lead_plans AS (
+SELECT
+  customer_id,
+  plan_id,
+  start_date,
+  LEAD(plan_id) OVER (
+      PARTITION BY customer_id
+      ORDER BY start_date
+    ) AS lead_plan_id,
+  LEAD(start_date) OVER (
+      PARTITION BY customer_id
+      ORDER BY start_date
+    ) AS lead_start_date
+FROM foodie_fi.subscriptions
+WHERE DATE_PART('year', start_date) = 2020
+AND plan_id <> 0)
+
+SELECT
+	ROW_NUMBER() OVER () AS row_number,
+    plan_id,
+    lead_plan_id,
+    COUNT(*) AS transition_count
+FROM lead_plans
+GROUP BY plan_id, lead_plan_id
+ORDER BY plan_id, lead_plan_id;
+```
+| row_number | plan_id | lead_plan_id | transition_count |
+| ---------- | ------- | ------------ | ---------------- |
+| 1          | 1       | 2            | 163              |
+| 2          | 1       | 3            | 88               |
+| 3          | 1       | 4            | 63               |
+| 4          | 1       |              | 224              |
+| 5          | 2       | 3            | 70               |
+| 6          | 2       | 4            | 83               |
+| 7          | 2       |              | 326              |
+| 8          | 3       |              | 195              |
+| 9          | 4       |              | 236              |
+
+We can now see the paths users take that we need to consider. From a basic monthly plan users can then take any path except trial. From a pro monthly plan they only upgrade to pro annual or churn. Once users either churn or start a pro annual plan they don’t move on to anything else. Where the lead_plan_id is null this is the current plan the user is on. So the cases we need to consider when we create our final query are:
+
+*Case 1: Customers who are on either the pro or basic monthly subscription (row_number 4, 7 and 9)
+*Case 2: Customers who churn (row_number 3, 6 and 9)
+*Case 3: Customers moving from a basic monthly plan to either pro plan (row_number 1 and 2)
+*Case 4: Pro monthly customers upgrading to pro annual plans (row_number 5)
+*Case 5: Annual pro payments (row_number 8)
+
+### Case 1: Case 1: Customers who are on either the pro or basic monthly subscription
+
+Lets start by breaking down case 1. The user will have paid on the date that they started their monthly plan and will have carried on paying until the end of 2020. So to start er will calculate how many more payment they’ll make after the start_date we have recorded. 
+
+```sql
+WITH lead_plans AS (
+SELECT
+  customer_id,
+  plan_id,
+  start_date,
+  LEAD(plan_id) OVER (
+      PARTITION BY customer_id
+      ORDER BY start_date
+    ) AS lead_plan_id,
+  LEAD(start_date) OVER (
+      PARTITION BY customer_id
+      ORDER BY start_date
+    ) AS lead_start_date
+FROM foodie_fi.subscriptions
+WHERE DATE_PART('year', start_date) = 2020
+AND plan_id <> 0),
+
+-- case 1: non churn monthly customers
+case_1 AS (
+SELECT
+  customer_id,
+  plan_id,
+  start_date,
+  DATE_PART('mon', AGE('2020-12-31'::DATE, start_date))::INTEGER AS month_diff
+FROM lead_plans
+WHERE lead_plan_id IS null
+AND plan_id IN (1, 2)
+)
+SELECT * FROM case_1
+  WHERE customer_id IN (1, 2, 7, 11, 13, 15, 16, 18, 19, 25, 39);
+```
+
+| customer_id | plan_id | start_date               | month_diff |
+| ----------- | ------- | ------------------------ | ---------- |
+| 1           | 1       | 2020-08-08T00:00:00.000Z | 4          |
+| 7           | 2       | 2020-05-22T00:00:00.000Z | 7          |
+| 13          | 1       | 2020-12-22T00:00:00.000Z | 0          |
+| 18          | 2       | 2020-07-13T00:00:00.000Z | 5          |
+| 25          | 2       | 2020-06-16T00:00:00.000Z | 6          |
+
+We've restricted the data for demonstration purposes and will continute to do this throughout. Here we used DATE_PART and AGE to work out the number of months between the start date and the end of 2020 and filter for only the monthy subscribers that never churned.
+Next we need to use this information to create a table with the customer_id, plan_id and payment_date where we have all the payment dates the user paid for their monthly subscription. 
+
+```sql
+WITH lead_plans AS (
+SELECT
+  customer_id,
+  plan_id,
+  start_date,
+  LEAD(plan_id) OVER (
+      PARTITION BY customer_id
+      ORDER BY start_date
+    ) AS lead_plan_id,
+  LEAD(start_date) OVER (
+      PARTITION BY customer_id
+      ORDER BY start_date
+    ) AS lead_start_date
+FROM foodie_fi.subscriptions
+WHERE DATE_PART('year', start_date) = 2020
+AND plan_id <> 0),
+
+-- case 1: non churn monthly customers
+case_1 AS (
+SELECT
+  customer_id,
+  plan_id,
+  start_date,
+  DATE_PART('mon', AGE('2020-12-31'::DATE, start_date))::INTEGER AS month_diff
+FROM lead_plans
+WHERE lead_plan_id IS null
+AND plan_id IN (1, 2)
+),
+-- generate a series to add the months to each start_date
+case_1_payments AS (
+  SELECT
+    customer_id,
+    plan_id,
+    (start_date + GENERATE_SERIES(0, month_diff) * INTERVAL '1 month')::DATE AS payment_date
+  FROM case_1
+)
+SELECT * FROM case_1_payments
+WHERE customer_id IN (1, 2, 7, 11, 13, 15, 16, 18, 19, 25, 39);
+```
+| customer_id | plan_id | payment_date             |
+| ----------- | ------- | ------------------------ |
+| 1           | 1       | 2020-08-08T00:00:00.000Z |
+| 1           | 1       | 2020-09-08T00:00:00.000Z |
+| 1           | 1       | 2020-10-08T00:00:00.000Z |
+| 1           | 1       | 2020-11-08T00:00:00.000Z |
+| 1           | 1       | 2020-12-08T00:00:00.000Z |
+| 7           | 2       | 2020-05-22T00:00:00.000Z |
+| 7           | 2       | 2020-06-22T00:00:00.000Z |
+| 7           | 2       | 2020-07-22T00:00:00.000Z |
+| 7           | 2       | 2020-08-22T00:00:00.000Z |
+| 7           | 2       | 2020-09-22T00:00:00.000Z |
+| 7           | 2       | 2020-10-22T00:00:00.000Z |
+| 7           | 2       | 2020-11-22T00:00:00.000Z |
+| 7           | 2       | 2020-12-22T00:00:00.000Z |
+| 13          | 1       | 2020-12-22T00:00:00.000Z |
+| 18          | 2       | 2020-07-13T00:00:00.000Z |
+| 18          | 2       | 2020-08-13T00:00:00.000Z |
+| 18          | 2       | 2020-09-13T00:00:00.000Z |
+| 18          | 2       | 2020-10-13T00:00:00.000Z |
+| 18          | 2       | 2020-11-13T00:00:00.000Z |
+| 18          | 2       | 2020-12-13T00:00:00.000Z |
+| 25          | 2       | 2020-06-16T00:00:00.000Z |
+| 25          | 2       | 2020-07-16T00:00:00.000Z |
+| 25          | 2       | 2020-08-16T00:00:00.000Z |
+| 25          | 2       | 2020-09-16T00:00:00.000Z |
+| 25          | 2       | 2020-10-16T00:00:00.000Z |
+| 25          | 2       | 2020-11-16T00:00:00.000Z |
+| 25          | 2       | 2020-12-16T00:00:00.000Z |
+
+Here, payment_date is calculated by using GENERATE_SERIES to create a series of numbers from 0 up to the month_diff, each of these is multipled by an interval of 1 month. This is then added to start_date so for each customer_id and plan_id we end up with a series of dates that monthly payments were made.
+
+### Case 2: Customers who churn
+This scenario is slightly easier because once a customer has churned they'll stop making payments so there's no reason to continue recording that. We'll record the date the customer churned for completeness then we'll stop recording anything. This is a simple query. Again we've limited the data for demonstration purposes.
+
+```sql
+WITH lead_plans AS (
+SELECT
+  customer_id,
+  plan_id,
+  start_date,
+  LEAD(plan_id) OVER (
+      PARTITION BY customer_id
+      ORDER BY start_date
+    ) AS lead_plan_id,
+  LEAD(start_date) OVER (
+      PARTITION BY customer_id
+      ORDER BY start_date
+    ) AS lead_start_date
+FROM foodie_fi.subscriptions
+WHERE DATE_PART('year', start_date) = 2020
+AND plan_id <> 0),
+
+-- case 2: churn customers
+case_2_payments AS (
+  SELECT
+    customer_id,
+    plan_id,
+    start_date AS payment_date
+  FROM lead_plans
+  -- churn accounts only
+  WHERE plan_id = 4
+)
+
+SELECT * FROM case_2_payments
+WHERE customer_id IN (39)
+```
+| customer_id | plan_id | payment_date             |
+| ----------- | ------- | ------------------------ |
+| 39          | 4       | 2020-09-10T00:00:00.000Z |
+
+### Case 3: Customers moving from a basic monthly plan to either pro plan
+Here we need to output the dates that customers are paying the basic monthly membership. We'll calculate any deductions at a later stage. For now, we want the dates from the date that they started the monthly membersip up until the month before they changed to another subscription. 
+
+```sql
+WITH lead_plans AS (
+SELECT
+  customer_id,
+  plan_id,
+  start_date,
+  LEAD(plan_id) OVER (
+      PARTITION BY customer_id
+      ORDER BY start_date
+    ) AS lead_plan_id,
+  LEAD(start_date) OVER (
+      PARTITION BY customer_id
+      ORDER BY start_date
+    ) AS lead_start_date
+FROM foodie_fi.subscriptions
+WHERE DATE_PART('year', start_date) = 2020
+AND plan_id <> 0),
+
+-- case 3: customers who move from basic to pro plans
+case_3 AS (
+  SELECT
+    customer_id,
+    plan_id,
+    start_date,
+    DATE_PART('mon', AGE(lead_start_date , start_date))::INTEGER AS month_diff
+  FROM lead_plans
+  WHERE plan_id = 1 AND lead_plan_id IN (2, 3)
+)
+SELECT * FROM case_3
+WHERE customer_id IN (7,16)
+```
+
+| customer_id | plan_id | start_date               | month_diff |
+| ----------- | ------- | ------------------------ | ---------- |
+| 7           | 1       | 2020-02-12T00:00:00.000Z | 3          |
+| 16          | 1       | 2020-06-07T00:00:00.000Z | 4          |
+
+Here we can see a couple examples of where customers have upgraded to a pro plan. We used the same method as we did for case1 but this time we wanted to know the number of months between the start_date when they started the basic plan and the lead_start_date when they upgraded. Next we want to generate the dates:
+
+```sql
+WITH lead_plans AS (
+SELECT
+  customer_id,
+  plan_id,
+  start_date,
+  LEAD(plan_id) OVER (
+      PARTITION BY customer_id
+      ORDER BY start_date
+    ) AS lead_plan_id,
+  LEAD(start_date) OVER (
+      PARTITION BY customer_id
+      ORDER BY start_date
+    ) AS lead_start_date
+FROM foodie_fi.subscriptions
+WHERE DATE_PART('year', start_date) = 2020
+AND plan_id <> 0),
+
+-- case 3: customers who move from basic to pro plans
+case_3 AS (
+  SELECT
+    customer_id,
+    plan_id,
+    start_date,
+    DATE_PART('mon', AGE(lead_start_date , start_date))::INTEGER AS month_diff
+  FROM lead_plans
+  WHERE plan_id = 1 AND lead_plan_id IN (2, 3)
+),
+case_3_payments AS (
+  SELECT
+    customer_id,
+    plan_id,
+    (start_date + GENERATE_SERIES(0, month_diff-1) * INTERVAL '1 month')::DATE AS payment_date
+  from case_3
+)
+
+SELECT * FROM case_3_payments
+WHERE customer_id IN (7,16)
+```
+| customer_id | plan_id | payment_date               |
+| ----------- | ------- | ------------------------ |
+| 7           | 1       | 2020-02-12T00:00:00.000Z |
+| 7           | 1       | 2020-03-12T00:00:00.000Z |
+| 7           | 1       | 2020-04-12T00:00:00.000Z |
+| 16          | 1       | 2020-06-07T00:00:00.000Z |
+| 16          | 1       | 2020-07-07T00:00:00.000Z |
+| 16          | 1       | 2020-08-07T00:00:00.000Z |
+| 16          | 1       | 2020-09-07T00:00:00.000Z |
+
+Here we again used a similar method to case 1, we used GENERATE_SERIES  and INTERVAL to calculate the dates of payment. We minused 1 from the month_diff because we don't need the month that the upgrade happened as payments are calculated differently and will be covered later. 
+
+### Case 4: Pro monthly customers upgrading to pro annual plans
+Again we use the same sort of logic. We want to generate the dates that the user paid for a pro monthly subscription before they upgraded to an annual plan. 
+```sql
+WITH lead_plans AS (
+SELECT
+  customer_id,
+  plan_id,
+  start_date,
+  LEAD(plan_id) OVER (
+      PARTITION BY customer_id
+      ORDER BY start_date
+    ) AS lead_plan_id,
+  LEAD(start_date) OVER (
+      PARTITION BY customer_id
+      ORDER BY start_date
+    ) AS lead_start_date
+FROM foodie_fi.subscriptions
+WHERE DATE_PART('year', start_date) = 2020
+AND plan_id <> 0),
+
+-- case 4: pro monthly customers who move up to annual plans
+case_4 AS (
+  SELECT
+    customer_id,
+    plan_id,
+    start_date,
+    DATE_PART('mon', AGE(lead_start_date, start_date))::INTEGER AS month_diff
+  FROM lead_plans
+  WHERE plan_id = 2 AND lead_plan_id = 3
+),
+case_4_payments AS (
+  SELECT
+    customer_id,
+    plan_id,
+    (start_date + GENERATE_SERIES(0, month_diff-1) * INTERVAL '1 month')::DATE AS payment_date
+  from case_4
+)
+
+SELECT * FROM case_4_payments
+WHERE customer_id = 31
+```
+
+| customer_id | plan_id | payment_date               |
+| ----------- | ------- | ------------------------ |
+| 31          | 2       | 2020-06-29T00:00:00.000Z |
+| 31          | 2       | 2020-07-29T00:00:00.000Z |
+| 31          | 2       | 2020-08-29T00:00:00.000Z |
+| 31          | 2       | 2020-09-29T00:00:00.000Z |
+| 31          | 2       | 2020-10-29T00:00:00.000Z |
+
+Here we've generated the payment dates from the date the user started the pro monthly plan until the month before they upgraded to an annual plan.
+
+### Case 5: Annual pro payments
+This is a simpler query because we dont have to generate multiple payments dates, because we're only looking at 2020 whatever date is the start_date when the users changes to an annual plan is the only payment_date we need.
+
+```sql
+WITH lead_plans AS (
+SELECT
+  customer_id,
+  plan_id,
+  start_date,
+  LEAD(plan_id) OVER (
+      PARTITION BY customer_id
+      ORDER BY start_date
+    ) AS lead_plan_id,
+  LEAD(start_date) OVER (
+      PARTITION BY customer_id
+      ORDER BY start_date
+    ) AS lead_start_date
+FROM foodie_fi.subscriptions
+WHERE DATE_PART('year', start_date) = 2020
+AND plan_id <> 0),
+
+-- case 5: annual pro payments
+case_5_payments AS (
+  SELECT
+    customer_id,
+    plan_id,
+    start_date AS payment_date
+  FROM lead_plans
+  WHERE plan_id = 3
+)
+
+SELECT * FROM case_5_payments
+WHERE customer_id = 2
+```
+| customer_id | plan_id | payment_date             |
+| ----------- | ------- | ------------------------ |
+| 2           | 3       | 2020-09-27T00:00:00.000Z |
+
+### Putting this together
+
+Finally we need to union these tables together and record the correct payment details.
+
 
 
 ## D. Outside The Box Questions
