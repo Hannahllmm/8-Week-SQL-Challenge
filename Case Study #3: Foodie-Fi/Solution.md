@@ -427,11 +427,11 @@ ORDER BY plan_id, lead_plan_id;
 
 We can now see the paths users take that we need to consider. From a basic monthly plan users can then take any path except trial. From a pro monthly plan they only upgrade to pro annual or churn. Once users either churn or start a pro annual plan they don’t move on to anything else. Where the lead_plan_id is null this is the current plan the user is on. So the cases we need to consider when we create our final query are:
 
-*Case 1: Customers who are on either the pro or basic monthly subscription (row_number 4, 7 and 9)
-*Case 2: Customers who churn (row_number 3, 6 and 9)
-*Case 3: Customers moving from a basic monthly plan to either pro plan (row_number 1 and 2)
-*Case 4: Pro monthly customers upgrading to pro annual plans (row_number 5)
-*Case 5: Annual pro payments (row_number 8)
+* Case 1: Customers who are on either the pro or basic monthly subscription (row_number 4, 7 and 9)
+* Case 2: Customers who churn (row_number 3, 6 and 9)
+* Case 3: Customers moving from a basic monthly plan to either pro plan (row_number 1 and 2)
+* Case 4: Pro monthly customers upgrading to pro annual plans (row_number 5)
+* Case 5: Annual pro payments (row_number 8)
 
 ### Case 1: Case 1: Customers who are on either the pro or basic monthly subscription
 
