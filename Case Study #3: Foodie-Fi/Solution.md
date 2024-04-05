@@ -335,12 +335,13 @@ We used the same query as the previous question to calculate the days it took to
 We used a similar query to Question 9 but changed some of the conditions. There were no instances where people downgraded in 2020.
 
 ## C. Challenge Payment Questions
-The Foodie-Fi team wants you to create a new payments table for the year 2020 that includes amounts paid by each customer in the subscriptions table with the following requirements:
+>The Foodie-Fi team wants you to create a new payments table for the year 2020 that includes amounts paid by each customer in the subscriptions table with the following requirements:
+>* monthly payments always occur on the same day of month as the original start_date of any monthly paid plan
+>* upgrades from basic to monthly or pro plans are reduced by the current paid amount in that month and start immediately
+>* upgrades from pro monthly to pro annual are paid at the end of the current billing period and also starts at the end of the month period
+>* once a customer churns they will no longer make payments
 
-monthly payments always occur on the same day of month as the original start_date of any monthly paid plan
-upgrades from basic to monthly or pro plans are reduced by the current paid amount in that month and start immediately
-upgrades from pro monthly to pro annual are paid at the end of the current billing period and also starts at the end of the month period
-once a customer churns they will no longer make payments
+This is a complex question so we'll break it down. 
 
 
 ## D. Outside The Box Questions
