@@ -336,7 +336,7 @@ We used a similar query to Question 9 but changed some of the conditions. There 
 
 ## C. Challenge Payment Questions
 >The Foodie-Fi team wants you to create a new payments table for the year 2020 that includes amounts paid by each customer in the subscriptions table with the following requirements:
->* monthly payments always occur on the same day of month as the original start_date of any monthly paid plan
+>* monthly payments always occur on the same day of month as the start_date of any monthly paid plan
 >* upgrades from basic to monthly or pro plans are reduced by the current paid amount in that month and start immediately
 >* upgrades from pro monthly to pro annual are paid at the end of the current billing period and also starts at the end of the month period
 >* once a customer churns they will no longer make payments
@@ -554,46 +554,94 @@ WHERE customer_id IN (1, 2, 7, 11, 13, 15, 16, 18, 19, 25, 39);
 Here, payment_date is calculated by using GENERATE_SERIES to create a series of numbers from 0 up to the month_diff, each of these is multipled by an interval of 1 month. This is then added to start_date so for each customer_id and plan_id we end up with a series of dates that monthly payments were made.
 
 ### Case 2: Customers who churn
-This scenario is slightly easier because once a customer has churned they'll stop making payments so there's no reason to continue recording that. We'll record the date the customer churned for completeness then we'll stop recording anything. This is a simple query. Again we've limited the data for demonstration purposes.
+We'll use a similar method. It's worth noting that there are no annual customers that then churn so we only need to consider monthly payments here. We want to know how many monthly payments are made before the customer churns. Again we've limited the data for demonstration purposes.
 
 ```sql
-WITH lead_plans AS (
-SELECT
-  customer_id,
-  plan_id,
-  start_date,
-  LEAD(plan_id) OVER (
-      PARTITION BY customer_id
-      ORDER BY start_date
-    ) AS lead_plan_id,
-  LEAD(start_date) OVER (
-      PARTITION BY customer_id
-      ORDER BY start_date
-    ) AS lead_start_date
-FROM foodie_fi.subscriptions
-WHERE DATE_PART('year', start_date) = 2020
-AND plan_id <> 0),
+    WITH lead_plans AS (
+    SELECT
+      customer_id,
+      plan_id,
+      start_date,
+      LEAD(plan_id) OVER (
+          PARTITION BY customer_id
+          ORDER BY start_date
+        ) AS lead_plan_id,
+      LEAD(start_date) OVER (
+          PARTITION BY customer_id
+          ORDER BY start_date
+        ) AS lead_start_date
+    FROM foodie_fi.subscriptions
+    WHERE DATE_PART('year', start_date) = 2020
+    AND plan_id <> 0),
+    
+    
+    case_2 AS (
+      SELECT
+        customer_id,
+        plan_id,
+        start_date,
+        DATE_PART('mon', AGE(lead_start_date, start_date))::INTEGER AS month_diff
+      FROM lead_plans
+      
+      WHERE lead_plan_id = 4
+    )
+    SELECT * FROM case_2
+    WHERE customer_id IN (113);
+    ```
 
--- case 2: churn customers
-case_2_payments AS (
-  SELECT
-    customer_id,
-    plan_id,
-    start_date AS payment_date
-  FROM lead_plans
-  -- churn accounts only
-  WHERE plan_id = 4
-)
+| customer_id | plan_id | start_date               | month_diff |
+| ----------- | ------- | ------------------------ | ---------- |
+| 113         | 2       | 2020-09-13T00:00:00.000Z | 1          |
 
-SELECT * FROM case_2_payments
-WHERE customer_id IN (39)
+Again we've used DATE_PART and AGE to work out how many months the customer was paying for this membership before they churned. Next we need to use GENERATE_SERIES to create rows for each payment.
+```sql
+    WITH lead_plans AS (
+    SELECT
+      customer_id,
+      plan_id,
+      start_date,
+      LEAD(plan_id) OVER (
+          PARTITION BY customer_id
+          ORDER BY start_date
+        ) AS lead_plan_id,
+      LEAD(start_date) OVER (
+          PARTITION BY customer_id
+          ORDER BY start_date
+        ) AS lead_start_date
+    FROM foodie_fi.subscriptions
+    WHERE DATE_PART('year', start_date) = 2020
+    AND plan_id <> 0),
+    
+    
+    case_2 AS (
+      SELECT
+        customer_id,
+        plan_id,
+        start_date,
+        DATE_PART('mon', AGE(lead_start_date, start_date))::INTEGER AS month_diff
+      FROM lead_plans
+      
+      WHERE lead_plan_id = 4
+    ),
+    case_2_payments AS (
+      SELECT
+        customer_id,
+        plan_id,
+        (start_date + GENERATE_SERIES(0, month_diff) * INTERVAL '1 month')::DATE AS start_date
+      from case_2
+    )
+    SELECT * FROM case_2_payments
+    WHERE customer_id IN (113);
 ```
-| customer_id | plan_id | payment_date             |
+
+| customer_id | plan_id | start_date               |
 | ----------- | ------- | ------------------------ |
-| 39          | 4       | 2020-09-10T00:00:00.000Z |
+| 113         | 2       | 2020-09-13T00:00:00.000Z |
+| 113         | 2       | 2020-10-13T00:00:00.000Z |
+
 
 ### Case 3: Customers moving from a basic monthly plan to either pro plan
-Here we need to output the dates that customers are paying the basic monthly membership. We'll calculate any deductions at a later stage. For now, we want the dates from the date that they started the monthly membersip up until the month before they changed to another subscription. 
+Here we need to output the dates that customers are paying the basic monthly membership. We'll calculate any deductions at a later stage. For now, we want the dates from the date that they started the basic monthly membersip up until the month before they changed to another subscription. 
 
 ```sql
 WITH lead_plans AS (
@@ -666,22 +714,24 @@ case_3_payments AS (
   SELECT
     customer_id,
     plan_id,
-    (start_date + GENERATE_SERIES(0, month_diff-1) * INTERVAL '1 month')::DATE AS payment_date
+    (start_date + GENERATE_SERIES(0, month_diff) * INTERVAL '1 month')::DATE AS payment_date
   from case_3
 )
 
 SELECT * FROM case_3_payments
 WHERE customer_id IN (7,16)
 ```
-| customer_id | plan_id | payment_date               |
+| customer_id | plan_id | payment_date             |
 | ----------- | ------- | ------------------------ |
 | 7           | 1       | 2020-02-12T00:00:00.000Z |
 | 7           | 1       | 2020-03-12T00:00:00.000Z |
 | 7           | 1       | 2020-04-12T00:00:00.000Z |
+| 7           | 1       | 2020-05-12T00:00:00.000Z |
 | 16          | 1       | 2020-06-07T00:00:00.000Z |
 | 16          | 1       | 2020-07-07T00:00:00.000Z |
 | 16          | 1       | 2020-08-07T00:00:00.000Z |
 | 16          | 1       | 2020-09-07T00:00:00.000Z |
+| 16          | 1       | 2020-10-07T00:00:00.000Z |
 
 Here we again used a similar method to case 1, we used GENERATE_SERIES  and INTERVAL to calculate the dates of payment. We minused 1 from the month_diff because we don't need the month that the upgrade happened as payments are calculated differently and will be covered later. 
 
@@ -777,12 +827,195 @@ WHERE customer_id = 2
 
 ### Putting this together
 
-Finally we need to union these tables together and record the correct payment details.
+Finally we need to union these tables together and record the correct payment details. This is a long query but breaking it down like we have above helps to understand what is going on. 
 
+```sql
+    WITH lead_plans AS (
+    SELECT
+      customer_id,
+      plan_id,
+      start_date,
+      LEAD(plan_id) OVER (
+          PARTITION BY customer_id
+          ORDER BY start_date
+        ) AS lead_plan_id,
+      LEAD(start_date) OVER (
+          PARTITION BY customer_id
+          ORDER BY start_date
+        ) AS lead_start_date
+    FROM foodie_fi.subscriptions
+    WHERE DATE_PART('year', start_date) = 2020
+    AND plan_id <> 0),
+    
+    
+    case_1 AS (
+    SELECT
+      customer_id,
+      plan_id,
+      start_date,
+      DATE_PART('mon', AGE('2020-12-31'::DATE, start_date))::INTEGER AS month_diff
+    FROM lead_plans
+    WHERE lead_plan_id IS null
+    AND plan_id IN (1, 2)
+    ),    
+    case_1_payments AS (
+      SELECT
+        customer_id,
+        plan_id,
+        (start_date + GENERATE_SERIES(0, month_diff) * INTERVAL '1 month')::DATE AS payment_date
+      FROM case_1
+    ),
+    
+    
+    case_2 AS (
+      SELECT
+        customer_id,
+        plan_id,
+        start_date,
+        DATE_PART('mon', AGE(lead_start_date, start_date))::INTEGER AS month_diff
+      FROM lead_plans      
+      WHERE lead_plan_id = 4
+    ),
+    case_2_payments AS (
+      SELECT
+        customer_id,
+        plan_id,
+        (start_date + GENERATE_SERIES(0, month_diff) * INTERVAL '1 month')::DATE AS start_date
+      from case_2
+    ),
+    
+    
+    case_3 AS (
+      SELECT
+        customer_id,
+        plan_id,
+        start_date,
+        DATE_PART('mon', AGE(lead_start_date , start_date))::INTEGER AS month_diff
+      FROM lead_plans
+      WHERE plan_id = 1 AND lead_plan_id IN (2, 3)
+    ),
+    case_3_payments AS (
+      SELECT
+        customer_id,
+        plan_id,
+        (start_date + GENERATE_SERIES(0, month_diff) * INTERVAL '1 month')::DATE AS payment_date
+      from case_3
+    ),
+    
+    
+    case_4 AS (
+      SELECT
+        customer_id,
+        plan_id,
+        start_date,
+        DATE_PART('mon', AGE(lead_start_date, start_date))::INTEGER AS month_diff
+      FROM lead_plans
+      WHERE plan_id = 2 AND lead_plan_id = 3
+    ),
+    case_4_payments AS (
+      SELECT
+        customer_id,
+        plan_id,
+        (start_date + GENERATE_SERIES(0, month_diff-1) * INTERVAL '1 month')::DATE AS payment_date
+      from case_4
+    ),
+    
+    
+    case_5_payments AS (
+      SELECT
+        customer_id,
+        plan_id,
+        start_date AS payment_date
+      FROM lead_plans
+      WHERE plan_id = 3
+    ),
+    
+    
+    union_output AS (
+      SELECT * FROM case_1_payments
+      UNION
+      SELECT * FROM case_2_payments
+      UNION
+      SELECT * FROM case_3_payments
+      UNION
+      SELECT * FROM case_4_payments
+      UNION
+      SELECT * FROM case_5_payments
+    )
+    
+    SELECT
+      customer_id,
+      plans.plan_id,
+      plans.plan_name,
+      payment_date,      
+      CASE
+        WHEN union_output.plan_id IN (2, 3) AND
+          LAG(union_output.plan_id) OVER w = 1
+        THEN plans.price - 9.90
+        ELSE plans.price
+        END AS amount,
+      RANK() OVER w AS payment_order
+    FROM union_output
+    INNER JOIN foodie_fi.plans
+      ON union_output.plan_id = plans.plan_id
+    WHERE customer_id IN (1, 2, 7, 11, 16, 31, 39, 113)
+    WINDOW w AS (
+      PARTITION BY union_output.customer_id
+      ORDER BY customer_id, payment_date
+    );
+```
 
+| customer_id | plan_id | plan_name     | payment_date             | amount | payment_order |
+| ----------- | ------- | ------------- | ------------------------ | ------ | ------------- |
+| 1           | 1       | basic monthly | 2020-08-08T00:00:00.000Z | 9.90   | 1             |
+| 1           | 1       | basic monthly | 2020-09-08T00:00:00.000Z | 9.90   | 2             |
+| 1           | 1       | basic monthly | 2020-10-08T00:00:00.000Z | 9.90   | 3             |
+| 1           | 1       | basic monthly | 2020-11-08T00:00:00.000Z | 9.90   | 4             |
+| 1           | 1       | basic monthly | 2020-12-08T00:00:00.000Z | 9.90   | 5             |
+| 2           | 3       | pro annual    | 2020-09-27T00:00:00.000Z | 199.00 | 1             |
+| 7           | 1       | basic monthly | 2020-02-12T00:00:00.000Z | 9.90   | 1             |
+| 7           | 1       | basic monthly | 2020-03-12T00:00:00.000Z | 9.90   | 2             |
+| 7           | 1       | basic monthly | 2020-04-12T00:00:00.000Z | 9.90   | 3             |
+| 7           | 1       | basic monthly | 2020-05-12T00:00:00.000Z | 9.90   | 4             |
+| 7           | 2       | pro monthly   | 2020-05-22T00:00:00.000Z | 10.00  | 5             |
+| 7           | 2       | pro monthly   | 2020-06-22T00:00:00.000Z | 19.90  | 6             |
+| 7           | 2       | pro monthly   | 2020-07-22T00:00:00.000Z | 19.90  | 7             |
+| 7           | 2       | pro monthly   | 2020-08-22T00:00:00.000Z | 19.90  | 8             |
+| 7           | 2       | pro monthly   | 2020-09-22T00:00:00.000Z | 19.90  | 9             |
+| 7           | 2       | pro monthly   | 2020-10-22T00:00:00.000Z | 19.90  | 10            |
+| 7           | 2       | pro monthly   | 2020-11-22T00:00:00.000Z | 19.90  | 11            |
+| 7           | 2       | pro monthly   | 2020-12-22T00:00:00.000Z | 19.90  | 12            |
+| 16          | 1       | basic monthly | 2020-06-07T00:00:00.000Z | 9.90   | 1             |
+| 16          | 1       | basic monthly | 2020-07-07T00:00:00.000Z | 9.90   | 2             |
+| 16          | 1       | basic monthly | 2020-08-07T00:00:00.000Z | 9.90   | 3             |
+| 16          | 1       | basic monthly | 2020-09-07T00:00:00.000Z | 9.90   | 4             |
+| 16          | 1       | basic monthly | 2020-10-07T00:00:00.000Z | 9.90   | 5             |
+| 16          | 3       | pro annual    | 2020-10-21T00:00:00.000Z | 189.10 | 6             |
+| 31          | 2       | pro monthly   | 2020-06-29T00:00:00.000Z | 19.90  | 1             |
+| 31          | 2       | pro monthly   | 2020-07-29T00:00:00.000Z | 19.90  | 2             |
+| 31          | 2       | pro monthly   | 2020-08-29T00:00:00.000Z | 19.90  | 3             |
+| 31          | 2       | pro monthly   | 2020-09-29T00:00:00.000Z | 19.90  | 4             |
+| 31          | 2       | pro monthly   | 2020-10-29T00:00:00.000Z | 19.90  | 5             |
+| 31          | 3       | pro annual    | 2020-11-29T00:00:00.000Z | 199.00 | 6             |
+| 39          | 1       | basic monthly | 2020-06-04T00:00:00.000Z | 9.90   | 1             |
+| 39          | 1       | basic monthly | 2020-07-04T00:00:00.000Z | 9.90   | 2             |
+| 39          | 1       | basic monthly | 2020-08-04T00:00:00.000Z | 9.90   | 3             |
+| 39          | 2       | pro monthly   | 2020-08-25T00:00:00.000Z | 10.00  | 4             |
+| 113         | 1       | basic monthly | 2020-04-17T00:00:00.000Z | 9.90   | 1             |
+| 113         | 1       | basic monthly | 2020-05-17T00:00:00.000Z | 9.90   | 2             |
+| 113         | 1       | basic monthly | 2020-06-17T00:00:00.000Z | 9.90   | 3             |
+| 113         | 1       | basic monthly | 2020-07-17T00:00:00.000Z | 9.90   | 4             |
+| 113         | 1       | basic monthly | 2020-08-17T00:00:00.000Z | 9.90   | 5             |
+| 113         | 2       | pro monthly   | 2020-09-13T00:00:00.000Z | 10.00  | 6             |
+| 113         | 2       | pro monthly   | 2020-10-13T00:00:00.000Z | 19.90  | 7             |
+
+In this final part of our query we have used UNION to union all the tables we created cases for. We then need to format this into a table where we could read off the payment details. Firstly we joined the union_output and the foodie_fi.plans tables on the plan_id to output the prices for each of the plans. But we need to consider where there are price reductions where a user has upgraded from a basic plan (which costs 9.90) to a pro plan. We define a window specification named w where we partition the data bt the customer_id, this is then used in the amount payment_order column. The amount is calculated by creating a CASE. Most of the time whatever the plan_id is we can take that plan price. Where there is an exception is when a user has gone from a basic plan to either a pro annual or pro monthly plan. We've used the LAG funtion in the context of WINDOWS w to see that the plan_id is in the previous row. If the current plan_id is 2 or 3 and the previous plan_id was 1 we know this is a time where the amount is the price of the current plan minus 9.90 (price of the basic monthly plan), any other time the amount is just the price of the current plan. payment_order is calculated by using RANK to rank each row in the context of WINDOW w, so ranking each row partitioned by the customer_id and ordered by the payment_date.
 
 ## D. Outside The Box Questions
+Each of teh following questions has multiple potential answers. We'll investigate just one potential answer for each.
 ### 1. How would you calculate the rate of growth for Foodie-Fi?
+
+
 
 ### 2. What key metrics would you recommend Foodie-Fi management to track over time to assess performance of their overall business?
 
