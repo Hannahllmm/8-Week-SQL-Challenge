@@ -1012,8 +1012,158 @@ Finally we need to union these tables together and record the correct payment de
 In this final part of our query we have used UNION to union all the tables we created cases for. We then need to format this into a table where we could read off the payment details. Firstly we joined the union_output and the foodie_fi.plans tables on the plan_id to output the prices for each of the plans. But we need to consider where there are price reductions where a user has upgraded from a basic plan (which costs 9.90) to a pro plan. We define a window specification named w where we partition the data bt the customer_id, this is then used in the amount payment_order column. The amount is calculated by creating a CASE. Most of the time whatever the plan_id is we can take that plan price. Where there is an exception is when a user has gone from a basic plan to either a pro annual or pro monthly plan. We've used the LAG funtion in the context of WINDOWS w to see that the plan_id is in the previous row. If the current plan_id is 2 or 3 and the previous plan_id was 1 we know this is a time where the amount is the price of the current plan minus 9.90 (price of the basic monthly plan), any other time the amount is just the price of the current plan. payment_order is calculated by using RANK to rank each row in the context of WINDOW w, so ranking each row partitioned by the customer_id and ordered by the payment_date.
 
 ## D. Outside The Box Questions
-Each of teh following questions has multiple potential answers. We'll investigate just one potential answer for each.
+Each of the following questions has multiple potential answers. We'll investigate just one potential answer for each.
 ### 1. How would you calculate the rate of growth for Foodie-Fi?
+
+One potential way to look at hte growth is to see how many customers are on each plan month after month. We've reused the query from section C, and created new columns that count the customers each month on each plan. A couple things we could add to this would be adding in the trial customers and churned customers. We would hope that the trial customers increased month on month and churned customers decreated each month. Another thing to consider is maybe it would be more useful to see how many new customers start each plan each month.
+
+```sql
+    WITH lead_plans AS (
+    SELECT
+      customer_id,
+      plan_id,
+      start_date,
+      LEAD(plan_id) OVER (
+          PARTITION BY customer_id
+          ORDER BY start_date
+        ) AS lead_plan_id,
+      LEAD(start_date) OVER (
+          PARTITION BY customer_id
+          ORDER BY start_date
+        ) AS lead_start_date
+    FROM foodie_fi.subscriptions
+    WHERE DATE_PART('year', start_date) = 2020
+    AND plan_id <> 0 
+    ),
+    
+    
+    case_1 AS (
+    SELECT
+      customer_id,
+      plan_id,
+      start_date,
+      DATE_PART('mon', AGE('2020-12-31'::DATE, start_date))::INTEGER AS month_diff
+    FROM lead_plans
+    WHERE lead_plan_id IS null
+    AND plan_id IN (1, 2)
+    ),
+    
+    case_1_payments AS (
+      SELECT
+        customer_id,
+        plan_id,
+        (start_date + GENERATE_SERIES(0, month_diff) * INTERVAL '1 month')::DATE AS payment_date
+      FROM case_1
+    ),
+    
+    
+    case_2 AS (
+      SELECT
+        customer_id,
+        plan_id,
+        start_date,
+        DATE_PART('mon', AGE(lead_start_date, start_date))::INTEGER AS month_diff
+      FROM lead_plans
+      
+      WHERE lead_plan_id = 4
+    ),
+    case_2_payments AS (
+      SELECT
+        customer_id,
+        plan_id,
+        (start_date + GENERATE_SERIES(0, month_diff) * INTERVAL '1 month')::DATE AS start_date
+      from case_2
+    ),
+    
+    
+    case_3 AS (
+      SELECT
+        customer_id,
+        plan_id,
+        start_date,
+        DATE_PART('mon', AGE(lead_start_date , start_date))::INTEGER AS month_diff
+      FROM lead_plans
+      WHERE plan_id = 1 AND lead_plan_id IN (2, 3)
+    ),
+    case_3_payments AS (
+      SELECT
+        customer_id,
+        plan_id,
+        (start_date + GENERATE_SERIES(0, month_diff) * INTERVAL '1 month')::DATE AS payment_date
+      from case_3
+    ),
+    
+    
+    case_4 AS (
+      SELECT
+        customer_id,
+        plan_id,
+        start_date,
+        DATE_PART('mon', AGE(lead_start_date, start_date))::INTEGER AS month_diff
+      FROM lead_plans
+      WHERE plan_id = 2 AND lead_plan_id = 3
+    ),
+    case_4_payments AS (
+      SELECT
+        customer_id,
+        plan_id,
+        (start_date + GENERATE_SERIES(0, month_diff-1) * INTERVAL '1 month')::DATE AS payment_date
+      from case_4
+    ),
+    
+    
+    case_5_payments AS (
+      SELECT
+        customer_id,
+        plan_id,
+        start_date AS payment_date
+      FROM lead_plans
+      WHERE plan_id = 3
+    ),
+    
+    
+    union_output AS (
+      SELECT * FROM case_1_payments
+      UNION
+      SELECT * FROM case_2_payments
+      UNION
+      SELECT * FROM case_3_payments
+      UNION
+      SELECT * FROM case_4_payments
+      UNION
+      SELECT * FROM case_5_payments
+    )
+    
+    
+    
+    SELECT
+      TO_CHAR(payment_date, 'Month') AS month,
+      COUNT(customer_id) FILTER (WHERE plans.plan_name = 'basic monthly') AS basic_monthly,
+      COUNT(customer_id) FILTER (WHERE plans.plan_name = 'pro monthly') AS pro_monthly,
+      COUNT(customer_id) FILTER (WHERE plans.plan_name = 'pro annual') AS pro_annual,
+      COUNT(customer_id) AS total
+    FROM union_output
+    INNER JOIN foodie_fi.plans
+      ON union_output.plan_id = plans.plan_id
+    GROUP BY TO_CHAR(payment_date, 'Month')
+    ORDER BY TO_DATE(TO_CHAR(payment_date, 'Month'), 'Month');
+```
+
+| month     | basic_monthly | pro_monthly | pro_annual | total |
+| --------- | ------------- | ----------- | ---------- | ----- |
+| January   | 31            | 29          | 2          | 62    |
+| February  | 67            | 56          | 5          | 128   |
+| March     | 109           | 87          | 7          | 203   |
+| April     | 137           | 114         | 11         | 262   |
+| May       | 166           | 140         | 13         | 319   |
+| June      | 191           | 167         | 16         | 374   |
+| July      | 202           | 195         | 20         | 417   |
+| August    | 222           | 233         | 24         | 479   |
+| September | 221           | 268         | 25         | 514   |
+| October   | 222           | 294         | 32         | 548   |
+| November  | 234           | 304         | 20         | 558   |
+| December  | 240           | 330         | 20         | 590   |
+
 
 
 
