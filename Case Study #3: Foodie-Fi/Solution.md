@@ -956,7 +956,7 @@ Finally we need to union these tables together and record the correct payment de
         END AS amount,
       RANK() OVER w AS payment_order
     FROM union_output
-    INNER JOIN foodie_fi.plans
+    JOIN foodie_fi.plans
       ON union_output.plan_id = plans.plan_id
     WHERE customer_id IN (1, 2, 7, 11, 16, 31, 39, 113)
     WINDOW w AS (
@@ -1168,9 +1168,90 @@ One potential way to look at hte growth is to see how many customers are on each
 
 
 ### 2. What key metrics would you recommend Foodie-Fi management to track over time to assess performance of their overall business?
+We could assess the performance by seeing how many people are churning each month. Ideally we want less people churning each month because that means they're keeping their plans.
+
+```sql
+    SELECT
+      EXTRACT(YEAR FROM start_date) AS year,
+      TO_CHAR(start_date, 'Month') AS month,
+      COUNT(customer_id) FILTER (WHERE plan_id = 4) AS churn_count
+    FROM foodie_fi.subscriptions
+    GROUP BY EXTRACT(YEAR FROM start_date), TO_CHAR(start_date, 'Month')
+    ORDER BY EXTRACT(YEAR FROM start_date), TO_DATE(TO_CHAR(start_date, 'Month'), 'Month');
+```
+
+| year | month     | churn_count |
+| ---- | --------- | ----- |
+| 2020 | January   | 9     |
+| 2020 | February  | 9     |
+| 2020 | March     | 13    |
+| 2020 | April     | 18    |
+| 2020 | May       | 21    |
+| 2020 | June      | 19    |
+| 2020 | July      | 28    |
+| 2020 | August    | 13    |
+| 2020 | September | 23    |
+| 2020 | October   | 26    |
+| 2020 | November  | 32    |
+| 2020 | December  | 25    |
+| 2021 | January   | 19    |
+| 2021 | February  | 18    |
+| 2021 | March     | 21    |
+| 2021 | April     | 13    |
+
+We can see that after the initial couple months the number of customers churning has stayed fairly consistant. We could improve this by looking at the percentage of customers churning each month. At the moment this query isn't taking into consideration more people subscribing month on month.
 
 ### 3. What are some key customer journeys or experiences that you would analyse further to improve customer retention?
+A key journey that would be interesting to look into is what plan causes the most people to then churn.
+
+```sql
+    WITH lead_plans AS (
+        SELECT
+          customer_id,
+          plan_id,
+          start_date,
+          LEAD(plan_id) OVER (
+              PARTITION BY customer_id
+              ORDER BY start_date
+            ) AS lead_plan_id,
+          LEAD(start_date) OVER (
+              PARTITION BY customer_id
+              ORDER BY start_date
+            ) AS lead_start_date
+        FROM foodie_fi.subscriptions
+        )
+        
+      SELECT 
+    	plans.plan_name,
+        COUNT(customer_id) FILTER (WHERE lead_plan_id = 4) AS churn_count
+      FROM lead_plans
+        JOIN foodie_fi.plans
+        ON lead_plans.plan_id = plans.plan_id
+      GROUP BY plans.plan_name;
+```
+
+| plan_name     | churn_count |
+| ------------- | ----------- |
+| pro annual    | 6           |
+| trial         | 92          |
+| churn         | 0           |
+| pro monthly   | 112         |
+| basic monthly | 97          |
+
+Here we can see that not many people churn after joining  pro annual plan. Again it might be more useful to calculate this as a percentage rather than a count.
 
 ### 4. If the Foodie-Fi team were to create an exit survey shown to customers who wish to cancel their subscription, what questions would you include in the survey?
+Some useful questions to consider would be:
+
+* What is your reason for leaving?
+* Is there anything we can change about our subscription service that would make you change your mind?
+* Do you feel like our prices are reasonable?
+* Have you ever tried any similar services?
+* If we offer a discount would you reconsider leaving?
 
 ### 5. What business levers could the Foodie-Fi team use to reduce the customer churn rate? How would you validate the effectiveness of your ideas?
+A couple of suggestions:
+
+* Offering a reduction in price for loyal customers. Directly comparing the average retention period after the reduction compared to the orriginal retention would indicate whether or not this works.
+* At the point where customers usually churn an email could be sent to help engage the customer again. We could see if that increases the average time people stay with the subscriotion.
+* Maybe offereing an upgrade for a reduced price could pursuade customers to stay if offered at the right time. Take up of this offer could indicate whether of not it has worked.
