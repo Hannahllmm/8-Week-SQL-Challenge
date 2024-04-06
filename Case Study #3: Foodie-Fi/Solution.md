@@ -1,4 +1,4 @@
-# Case Study #3: Foodie-Fi
+se Study #3: Foodie-Fi
 Feel free to test these queries out [here.](https://www.db-fiddle.com/f/rHJhRrXy5hbVBNJ6F6b9gJ/16)
 
 ## Table of Contents
@@ -10,7 +10,7 @@ Feel free to test these queries out [here.](https://www.db-fiddle.com/f/rHJhRrXy
 ## A. Customer Journey
 ```sql
     SELECT 
-    	s.customer_id,
+      s.customer_id,
         s.start_date,
         p.plan_name,
         p.price
@@ -46,7 +46,6 @@ Feel free to test these queries out [here.](https://www.db-fiddle.com/f/rHJhRrXy
 | 19          | 2020-06-29T00:00:00.000Z | pro monthly   | 19.90  |
 | 19          | 2020-08-29T00:00:00.000Z | pro annual    | 199.00 |
 
-
 #### The journey of these 8 customers:
 
 1. This customer started with a free trial on the 1st August then downgraded to the basic plan.
@@ -62,7 +61,7 @@ Feel free to test these queries out [here.](https://www.db-fiddle.com/f/rHJhRrXy
 ### 1. How many customers has Foodie-Fi ever had?
 ``` sql
     SELECT 
-    	COUNT(DISTINCT s.customer_id) as total_customers
+      COUNT(DISTINCT s.customer_id) as total_customers
     FROM foodie_fi.subscriptions AS s;
 ```
 | total_customers |
@@ -73,7 +72,7 @@ Feel free to test these queries out [here.](https://www.db-fiddle.com/f/rHJhRrXy
 ```sql
     SELECT 
         TO_CHAR(DATE_TRUNC('month',s.start_date),'month') AS "month",
-    	COUNT(DISTINCT s.customer_id) AS trial_plans
+      COUNT(DISTINCT s.customer_id) AS trial_plans
     FROM foodie_fi.subscriptions AS s
     WHERE s.plan_id = 0
     GROUP BY DATE_TRUNC('month',s.start_date)
@@ -134,8 +133,7 @@ Here we filtered to only include the plans that happened on or after the 1st Jan
 | ----------- | ----------------- | ------------------ |
 | 1000        | 307               | 30.7%              |
 
-Here we used SUM, CASE and WHEN to do conditional summations of the customers churned. In order to get the correct percentage we multiplied the ratio by 100 and both the denominator and numerator were converted to floats so that the percentage also came out as a float, we then converted this to text and added a percentage sign. 30.7% of the customers churned. 
-
+Here we used SUM, CASE and WHEN to do conditional summations of the customers churned. In order to get the correct percentage, we multiplied the ratio by 100 and both the denominator and numerator were converted to floats so that the percentage also came out as a float, we then converted this to text and added a percentage sign. 30.7% of the customers churned. 
 
 ### 5. How many customers have churned straight after their initial free trial - what percentage is this rounded to the nearest whole number?
 ```sql
@@ -151,14 +149,14 @@ WHERE
     AND s2.start_date - s1.start_date <= 7)
    
 SELECT 
-	COUNT(DISTINCT cte.customer_id) AS churn_count,
-	(100* COUNT(DISTINCT cte.customer_id)::float /
+  COUNT(DISTINCT cte.customer_id) AS churn_count,
+  (100* COUNT(DISTINCT cte.customer_id)::float /
             COUNT(DISTINCT s.customer_id)::float)::text || '%'
             AS percentage_churned
 FROM 
-	foodie_fi.subscriptions AS s
+  foodie_fi.subscriptions AS s
 LEFT JOIN 
-	cte_churned_after_trial AS cte
+  cte_churned_after_trial AS cte
     ON cte.customer_id = s.customer_id;
 ```
     
@@ -167,7 +165,6 @@ LEFT JOIN
 | 92          | 9.2%               |
 
 Here we created a cte that uses a join and filtering to list out the customers who churned straight after a trial. This table is then joined to the original subscriptions table and we use the same method as before to calculate the percentage. Another way we could have done this that may have been more effective would be to use PARTITION BY to rank the plans of each customer by start_date and look at the second plan that was subscribed to. This would remove the need to join the subscription table to itself. 
-
 
 ### 6. What is the number and percentage of customer plans after their initial free trial?
 ```sql
@@ -182,13 +179,13 @@ Here we created a cte that uses a join and filtering to list out the customers w
       FROM foodie_fi.subscriptions
     )
     SELECT
-    	plans.plan_id,
+      plans.plan_id,
         plans.plan_name,
       COUNT(*) AS customers,
       (100 * COUNT(*)::float / SUM(COUNT(*)::float) OVER ())::text || '%' AS percentage
     FROM ranked_plans
     JOIN foodie_fi.plans
-    	ON ranked_plans.plan_id = plans.plan_id
+      ON ranked_plans.plan_id = plans.plan_id
     WHERE plan_rank = 2
     GROUP BY plans.plan_id, plans.plan_name
     ORDER BY plans.plan_id;
@@ -217,13 +214,13 @@ Here we used the PARTITION BY method to rank the plans of each customer by start
           WHERE start_date <= '12-31-2020'
         )
         SELECT
-        	plans.plan_id,
+          plans.plan_id,
             plans.plan_name,
           COUNT(*) AS customers,
           (100 * COUNT(*)::float / SUM(COUNT(*)::float) OVER ())::text || '%' AS percentage
         FROM ranked_plans
         JOIN foodie_fi.plans
-        	ON ranked_plans.plan_id = plans.plan_id
+          ON ranked_plans.plan_id = plans.plan_id
         WHERE plan_rank = 1
         GROUP BY plans.plan_id, plans.plan_name
         ORDER BY plans.plan_id;
@@ -237,12 +234,12 @@ Here we used the PARTITION BY method to rank the plans of each customer by start
 | 3       | pro annual    | 195       | 19.5%      |
 | 4       | churn         | 236       | 23.6%      |
 
-We'ce used the same logic as the previous question but added a filter to the cte to only look at subscriptions from before 31/12/2020. We've also ordered the partition in descending order so that plans with rank 1 can be filtered, these are the current plans active at 31/12/202.
+We’ve used the same logic as the previous question but added a filter to the cte to only look at subscriptions from before 31/12/2020. We've also ordered the partition in descending order so that plans with rank 1 can be filtered, these are the current plans active at 31/12/202.
 
 ### 8. How many customers have upgraded to an annual plan in 2020?
 ```sql
     SELECT
-    	COUNT(DISTINCT customer_id) AS annual_customers
+      COUNT(DISTINCT customer_id) AS annual_customers
     FROM foodie_fi.subscriptions
     WHERE EXTRACT(YEAR FROM start_date) = 2020 AND plan_id = 3;
 ```
@@ -256,10 +253,10 @@ All we needed to do here was add some filters to the subscriptions table and cou
 ### 9. How many days on average does it take for a customer to upgrade to an annual plan from the day they join Foodie-Fi?
 ```sql
     SELECT 
-    	AVG(pro_annual.start_date - trial.start_date)::int AS average_days
+      AVG(pro_annual.start_date - trial.start_date)::int AS average_days
     FROM foodie_fi.subscriptions AS trial
     JOIN foodie_fi.subscriptions AS pro_annual 
-    	ON trial.customer_id = pro_annual.customer_id
+      ON trial.customer_id = pro_annual.customer_id
     WHERE trial.plan_id = 0 
     AND pro_annual.plan_id = 3;
 ```
@@ -268,7 +265,7 @@ All we needed to do here was add some filters to the subscriptions table and cou
 | ------------ |
 | 105          |
 
-Here we joined the subscription table to itself to work out the average days between trial and pro annual subscription. On average it takes 105 for a customer to conver to an annual subscription.
+Here we joined the subscription table to itself to work out the average days between trial and pro annual subscription. On average it takes 105 for a customer to convert to an annual subscription.
 
 ### 10. Can you further breakdown this average value into 30 day periods (i.e. 0-30 days, 31-60 days etc)
 ```sql
@@ -285,8 +282,8 @@ Here we joined the subscription table to itself to work out the average days bet
     
     breakdown_periods AS (
         SELECT
-    		(annual_days.days / 30) * 30 + 1 || ' - ' || ((annual_days.days / 30) + 1) * 30 || ' days' 
-    			AS breakdown_period,
+        (annual_days.days / 30) * 30 + 1 || ' - ' || ((annual_days.days / 30) + 1) * 30 || ' days' 
+          AS breakdown_period,
             annual_days.customer_id
         FROM annual_days)
     
@@ -313,20 +310,20 @@ Here we joined the subscription table to itself to work out the average days bet
 | 301 - 330 days   | 1         |
 | 331 - 360 days   | 1         |
 
-We used the same query as the previous question to calculate the days it took to convert from a trial customer to an annual customer. We then used this to create a second cte breakdown_period where we converted each of the values from the previous query into a period. The days are slightly different to what the question asks for as 1-30 then 31-60 is less ambiguous. Finally this was used to create a table that counted the instances in each breakdown_period.
+We used the same query as the previous question to calculate the days it took to convert from a trial customer to an annual customer. We then used this to create a second cte breakdown_period where we converted each of the values from the previous query into a period. The days are slightly different to what the question asks for as 1-30 then 31-60 is less ambiguous. Finally, this was used to create a table that counted the instances in each breakdown_period.
 
 ### 11. How many customers downgraded from a pro monthly to a basic monthly plan in 2020?
 ```sql
     SELECT 
-        	COUNT(DISTINCT pro_monthly.customer_id) AS downgrade_count
+          COUNT(DISTINCT pro_monthly.customer_id) AS downgrade_count
         FROM foodie_fi.subscriptions AS pro_monthly
         JOIN foodie_fi.subscriptions AS basic_monthly
-        	ON pro_monthly.customer_id = basic_monthly.customer_id
+          ON pro_monthly.customer_id = basic_monthly.customer_id
         WHERE
-		pro_monthly.plan_id = 2
-        	AND basic_monthly.plan_id = 1
-            	AND pro_monthly.start_date < basic_monthly.start_date
-        	AND EXTRACT(YEAR FROM basic_monthly.start_date) = 2020;
+    pro_monthly.plan_id = 2
+          AND basic_monthly.plan_id = 1
+              AND pro_monthly.start_date < basic_monthly.start_date
+          AND EXTRACT(YEAR FROM basic_monthly.start_date) = 2020;
 ```
 | downgrade_count |
 | --------------- |
@@ -405,7 +402,7 @@ WHERE DATE_PART('year', start_date) = 2020
 AND plan_id <> 0)
 
 SELECT
-	ROW_NUMBER() OVER () AS row_number,
+  ROW_NUMBER() OVER () AS row_number,
     plan_id,
     lead_plan_id,
     COUNT(*) AS transition_count
@@ -425,7 +422,7 @@ ORDER BY plan_id, lead_plan_id;
 | 8          | 3       |              | 195              |
 | 9          | 4       |              | 236              |
 
-We can now see the paths users take that we need to consider. From a basic monthly plan users can then take any path except trial. From a pro monthly plan they only upgrade to pro annual or churn. Once users either churn or start a pro annual plan they don’t move on to anything else. Where the lead_plan_id is null this is the current plan the user is on. So the cases we need to consider when we create our final query are:
+We can now see the paths users take that we need to consider. From a basic monthly plan users can then take any path except trial. From a pro monthly plan, they only upgrade to pro annual or churn. Once users either churn or start a pro annual plan they don’t move on to anything else. Where the lead_plan_id is null this is the current plan the user is on. So the cases we need to consider when we create our final query are:
 
 * Case 1: Customers who are on either the pro or basic monthly subscription (row_number 4, 7 and 9)
 * Case 2: Customers who churn (row_number 3, 6 and 9)
@@ -478,7 +475,7 @@ SELECT * FROM case_1
 | 18          | 2       | 2020-07-13T00:00:00.000Z | 5          |
 | 25          | 2       | 2020-06-16T00:00:00.000Z | 6          |
 
-We've restricted the data for demonstration purposes and will continute to do this throughout. Here we used DATE_PART and AGE to work out the number of months between the start date and the end of 2020 and filter for only the monthy subscribers that never churned.
+We've restricted the data for demonstration purposes and will continue to do this throughout. Here we used DATE_PART and AGE to work out the number of months between the start date and the end of 2020 and filter for only the monthly subscribers that never churned.
 Next we need to use this information to create a table with the customer_id, plan_id and payment_date where we have all the payment dates the user paid for their monthly subscription. 
 
 ```sql
@@ -551,7 +548,7 @@ WHERE customer_id IN (1, 2, 7, 11, 13, 15, 16, 18, 19, 25, 39);
 | 25          | 2       | 2020-11-16T00:00:00.000Z |
 | 25          | 2       | 2020-12-16T00:00:00.000Z |
 
-Here, payment_date is calculated by using GENERATE_SERIES to create a series of numbers from 0 up to the month_diff, each of these is multipled by an interval of 1 month. This is then added to start_date so for each customer_id and plan_id we end up with a series of dates that monthly payments were made.
+Here, payment_date is calculated by using GENERATE_SERIES to create a series of numbers from 0 up to the month_diff, each of these is multiplied by an interval of 1 month. This is then added to start_date so for each customer_id and plan_id we end up with a series of dates that monthly payments were made.
 
 ### Case 2: Customers who churn
 We'll use a similar method. It's worth noting that there are no annual customers that then churn so we only need to consider monthly payments here. We want to know how many monthly payments are made before the customer churns. Again we've limited the data for demonstration purposes.
@@ -639,9 +636,8 @@ Again we've used DATE_PART and AGE to work out how many months the customer was 
 | 113         | 2       | 2020-09-13T00:00:00.000Z |
 | 113         | 2       | 2020-10-13T00:00:00.000Z |
 
-
 ### Case 3: Customers moving from a basic monthly plan to either pro plan
-Here we need to output the dates that customers are paying the basic monthly membership. We'll calculate any deductions at a later stage. For now, we want the dates from the date that they started the basic monthly membersip up until the month before they changed to another subscription. 
+Here we need to output the dates that customers are paying the basic monthly membership. We'll calculate any deductions at a later stage. For now, we want the dates from the date that they started the basic monthly membership up until the month before they changed to another subscription. 
 
 ```sql
 WITH lead_plans AS (
@@ -733,10 +729,10 @@ WHERE customer_id IN (7,16)
 | 16          | 1       | 2020-09-07T00:00:00.000Z |
 | 16          | 1       | 2020-10-07T00:00:00.000Z |
 
-Here we again used a similar method to case 1, we used GENERATE_SERIES  and INTERVAL to calculate the dates of payment. We minused 1 from the month_diff because we don't need the month that the upgrade happened as payments are calculated differently and will be covered later. 
+Here we again used a similar method to case 1, we used GENERATE_SERIES  and INTERVAL to calculate the dates of payment. We subtracted 1 from the month_diff because we don't need the month that the upgrade happened as payments are calculated differently and will be covered later. 
 
 ### Case 4: Pro monthly customers upgrading to pro annual plans
-Again we use the same sort of logic. We want to generate the dates that the user paid for a pro monthly subscription before they upgraded to an annual plan. 
+Again, we use the same sort of logic. We want to generate the dates that the user paid for a pro monthly subscription before they upgraded to an annual plan. 
 ```sql
 WITH lead_plans AS (
 SELECT
@@ -788,7 +784,7 @@ WHERE customer_id = 31
 Here we've generated the payment dates from the date the user started the pro monthly plan until the month before they upgraded to an annual plan.
 
 ### Case 5: Annual pro payments
-This is a simpler query because we dont have to generate multiple payments dates, because we're only looking at 2020 whatever date is the start_date when the users changes to an annual plan is the only payment_date we need.
+This is a simpler query because we don’t have to generate multiple payments dates, because we're only looking at 2020 whatever date is the start_date when the users changes to an annual plan is the only payment_date we need.
 
 ```sql
 WITH lead_plans AS (
@@ -827,7 +823,7 @@ WHERE customer_id = 2
 
 ### Putting this together
 
-Finally we need to union these tables together and record the correct payment details. This is a long query but breaking it down like we have above helps to understand what is going on. 
+Finally, we need to union these tables together and record the correct payment details. This is a long query but breaking it down like we have above helps to understand what is going on. 
 
 ```sql
     WITH lead_plans AS (
@@ -1009,13 +1005,13 @@ Finally we need to union these tables together and record the correct payment de
 | 113         | 2       | pro monthly   | 2020-09-13T00:00:00.000Z | 10.00  | 6             |
 | 113         | 2       | pro monthly   | 2020-10-13T00:00:00.000Z | 19.90  | 7             |
 
-In this final part of our query we have used UNION to union all the tables we created cases for. We then need to format this into a table where we could read off the payment details. Firstly we joined the union_output and the foodie_fi.plans tables on the plan_id to output the prices for each of the plans. But we need to consider where there are price reductions where a user has upgraded from a basic plan (which costs 9.90) to a pro plan. We define a window specification named w where we partition the data bt the customer_id, this is then used in the amount payment_order column. The amount is calculated by creating a CASE. Most of the time whatever the plan_id is we can take that plan price. Where there is an exception is when a user has gone from a basic plan to either a pro annual or pro monthly plan. We've used the LAG funtion in the context of WINDOWS w to see that the plan_id is in the previous row. If the current plan_id is 2 or 3 and the previous plan_id was 1 we know this is a time where the amount is the price of the current plan minus 9.90 (price of the basic monthly plan), any other time the amount is just the price of the current plan. payment_order is calculated by using RANK to rank each row in the context of WINDOW w, so ranking each row partitioned by the customer_id and ordered by the payment_date.
+In this final part of our query we have used UNION to union all the tables we created cases for. We then need to format this into a table where we could read off the payment details. Firstly we joined the union_output and the foodie_fi.plans tables on the plan_id to output the prices for each of the plans. But we need to consider where there are price reductions where a user has upgraded from a basic plan (which costs 9.90) to a pro plan. We define a window specification named w where we partition the data by the customer_id, this is then used in the amount payment_order column. The amount is calculated by creating a CASE. Most of the time whatever the plan_id is we can take that plan price. Where there is an exception is when a user has gone from a basic plan to either a pro annual or pro monthly plan. We've used the LAG function in the context of WINDOWS w to see that the plan_id is in the previous row. If the current plan_id is 2 or 3 and the previous plan_id was 1 we know this is a time where the amount is the price of the current plan minus 9.90 (price of the basic monthly plan), any other time the amount is just the price of the current plan. payment_order is calculated by using RANK to rank each row in the context of WINDOW w, so ranking each row partitioned by the customer_id and ordered by the payment_date.
 
-## D. Outside The Box Questions
+## D. Outside the Box Questions
 Each of the following questions has multiple potential answers. We'll investigate just one potential answer for each.
 ### 1. How would you calculate the rate of growth for Foodie-Fi?
 
-One potential way to look at hte growth is to see how many customers are on each plan month after month. We've reused the query from section C, and created new columns that count the customers each month on each plan. A couple things we could add to this would be adding in the trial customers and churned customers. We would hope that the trial customers increased month on month and churned customers decreated each month. Another thing to consider is maybe it would be more useful to see how many new customers start each plan each month.
+One potential way to look at the growth is to see how many customers are on each plan month after month. We've reused the query from section C, and created new columns that count the customers each month on each plan. A couple things we could add to this would be adding in the trial customers and churned customers. We would hope that the trial customers increased month on month and churned customers decreased each month. Another thing to consider is maybe it would be more useful to see how many new customers start each plan each month.
 
 ```sql
     WITH lead_plans AS (
@@ -1166,7 +1162,6 @@ One potential way to look at hte growth is to see how many customers are on each
 
 
 
-
 ### 2. What key metrics would you recommend Foodie-Fi management to track over time to assess performance of their overall business?
 We could assess the performance by seeing how many people are churning each month. Ideally we want less people churning each month because that means they're keeping their plans.
 
@@ -1199,7 +1194,7 @@ We could assess the performance by seeing how many people are churning each mont
 | 2021 | March     | 21    |
 | 2021 | April     | 13    |
 
-We can see that after the initial couple months the number of customers churning has stayed fairly consistant. We could improve this by looking at the percentage of customers churning each month. At the moment this query isn't taking into consideration more people subscribing month on month.
+We can see that after the initial couple months the number of customers churning has stayed fairly consistent. We could improve this by looking at the percentage of customers churning each month. At the moment this query isn't taking into consideration more people subscribing month on month.
 
 ### 3. What are some key customer journeys or experiences that you would analyse further to improve customer retention?
 A key journey that would be interesting to look into is what plan causes the most people to then churn.
@@ -1222,7 +1217,7 @@ A key journey that would be interesting to look into is what plan causes the mos
         )
         
       SELECT 
-    	plans.plan_name,
+      plans.plan_name,
         COUNT(customer_id) FILTER (WHERE lead_plan_id = 4) AS churn_count
       FROM lead_plans
         JOIN foodie_fi.plans
@@ -1252,6 +1247,6 @@ Some useful questions to consider would be:
 ### 5. What business levers could the Foodie-Fi team use to reduce the customer churn rate? How would you validate the effectiveness of your ideas?
 A couple of suggestions:
 
-* Offering a reduction in price for loyal customers. Directly comparing the average retention period after the reduction compared to the orriginal retention would indicate whether or not this works.
-* At the point where customers usually churn an email could be sent to help engage the customer again. We could see if that increases the average time people stay with the subscriotion.
-* Maybe offereing an upgrade for a reduced price could pursuade customers to stay if offered at the right time. Take up of this offer could indicate whether of not it has worked.
+* Offering a reduction in price for loyal customers. Directly comparing the average retention period after the reduction compared to the original retention would indicate whether or not this works.
+* At the point where customers usually churn an email could be sent to help engage the customer again. We could see if that increases the average time people stay with the subscription.
+* Maybe offering an upgrade for a reduced price could persuade customers to stay if offered at the right time. Take up of this offer could indicate whether of not it has worked.
