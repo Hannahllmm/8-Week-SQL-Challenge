@@ -1,4 +1,4 @@
-se Study #3: Foodie-Fi
+# Case Study #3: Foodie-Fi
 Feel free to test these queries out [here.](https://www.db-fiddle.com/f/rHJhRrXy5hbVBNJ6F6b9gJ/16)
 
 ## Table of Contents
