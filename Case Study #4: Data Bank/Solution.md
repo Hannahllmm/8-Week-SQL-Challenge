@@ -24,11 +24,37 @@ FROM combinations;
 
 There are 25 unique nodes.
 
+### What is the number of nodes per region?
+#### Solution
+```sql
+SELECT 
+	region_id,
+	COUNT(DISTINCT node_id) node_count
+FROM data_bank.customer_nodes
+GROUP BY region_id;
+```
+![image](https://github.com/user-attachments/assets/ba88d0c1-13da-44e7-8bfe-dbaffbec1c7b)
 
-What is the number of nodes per region?
-How many customers are allocated to each region?
-How many days on average are customers reallocated to a different node?
-What is the median, 80th and 95th percentile for this same reallocation days metric for each region?
+There are 5 nodes in each region.
+
+### How many customers are allocated to each region?
+#### Solution
+```sql
+SELECT 
+	r.region_name,
+	COUNT(DISTINCT cn.customer_id) node_count
+FROM data_bank.customer_nodes cn
+INNER JOIN data_bank.regions r
+	ON cn.region_id = r.region_id
+GROUP BY r.region_name;
+```
+![image](https://github.com/user-attachments/assets/0bbf10de-e149-40e1-bfd0-6b12f7b039c7)
+
+
+### How many days on average are customers reallocated to a different node?
+
+
+### What is the median, 80th and 95th percentile for this same reallocation days metric for each region?
 
 
 ### B. Customer Transactions
