@@ -69,6 +69,24 @@ This isn't as easy as it first seems. Below looks at the journey of customer 1 a
 
 Here we can see that on 4/01/20 the same node was generated. So we need a way to account for this as it took 12 days to assign a new node. 
 
+To start answering this questions first we'll create a tempory table that calculates the duration between the start and end date and we will rank each row partitioned by the customer_id and ordered by the start_date to use later to handle the above scenario. 
+
+```sql
+DROP TABLE IF EXISTS ranked_customer_nodes;
+CREATE TEMP TABLE ranked_customer_nodes AS
+(SELECT
+  customer_id,
+  node_id,
+  region_id,
+  DATE_PART('day', AGE(end_date, start_date))::INTEGER AS duration,
+  ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY start_date) AS rn
+FROM data_bank.customer_nodes
+ORDER BY customer_id, start_date);
+```
+This is an extract of this tempory table:
+![image](https://github.com/user-attachments/assets/2ea07214-c2cf-4fe2-a22f-b583180b5724)
+
+
 ### What is the median, 80th and 95th percentile for this same reallocation days metric for each region?
 
 
