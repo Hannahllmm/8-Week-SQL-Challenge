@@ -86,8 +86,206 @@ ORDER BY customer_id, start_date);
 This is an extract of this tempory table:
 ![image](https://github.com/user-attachments/assets/2ea07214-c2cf-4fe2-a22f-b583180b5724)
 
+We're then going to use a recursive CTE to generate our ouput. Our anchor member which is our starting point will be all the records where the rn is 1, this is the first record for each customer. Which looks like this:
+
+```sql
+DROP TABLE IF EXISTS ranked_customer_nodes;
+CREATE TEMP TABLE ranked_customer_nodes AS
+(SELECT
+  customer_id,
+  node_id,
+  region_id,
+  DATE_PART('day', AGE(end_date, start_date))::INTEGER AS duration,
+  ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY start_date) AS rn
+FROM data_bank.customer_nodes
+ORDER BY customer_id, start_date);
+
+SELECT
+  customer_id,
+  node_id,
+  duration,
+  rn,
+  1 AS run_id
+FROM ranked_customer_nodes
+WHERE rn = 1
+```
+
+This is an extract of this starting point:
+![image](https://github.com/user-attachments/assets/4586caa5-1713-4583-99ff-f9c98e013565)
+
+Next we need to union this table with the output of the recursive table.
+
+```sql
+DROP TABLE IF EXISTS ranked_customer_nodes;
+CREATE TEMP TABLE ranked_customer_nodes AS
+(SELECT
+  customer_id,
+  node_id,
+  region_id,
+  DATE_PART('day', AGE(end_date, start_date))::INTEGER AS duration,
+  ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY start_date) AS rn
+FROM data_bank.customer_nodes
+ORDER BY customer_id, start_date);
+
+WITH RECURSIVE output_table AS (
+  SELECT
+    customer_id,
+    node_id,
+    duration,
+    rn,
+    1 AS run_id
+  FROM ranked_customer_nodes
+  WHERE rn = 1
+
+  UNION ALL
+
+  SELECT
+    t2.customer_id,
+    t2.node_id,
+    t2.duration,
+    t2.rn,
+    CASE
+      WHEN t1.node_id != t2.node_id THEN t1.run_id + 1
+      ELSE t1.run_id
+    END AS run_id
+  FROM output_table t1
+  INNER JOIN ranked_customer_nodes t2
+    ON t1.rn + 1 = t2.rn
+    AND t1.customer_id = t2.customer_id
+)
+
+SELECT * FROM output_table
+ORDER BY customer_id, rn;
+```
+Sample output:
+![image](https://github.com/user-attachments/assets/571a83b7-df5b-4152-a2f2-3972972c0b20)
+
+Our aim here is to have a column run_id that will increase only when the node has changed for the customer. We increase t1.rn by 1 to look at the next record for each customer. We check to see if the node_id is the same, if it's not then we increase the run_id by one, but if it is then keep the run_id as the same. We carry on increasing the rn by 1 until there are none left. 
+
+Next we can take an average of the duration by the run_id and the customer_id
+```sql
+DROP TABLE IF EXISTS ranked_customer_nodes;
+CREATE TEMP TABLE ranked_customer_nodes AS
+(SELECT
+  customer_id,
+  node_id,
+  region_id,
+  DATE_PART('day', AGE(end_date, start_date))::INTEGER AS duration,
+  ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY start_date) AS rn
+FROM data_bank.customer_nodes
+ORDER BY customer_id, start_date);
+
+WITH RECURSIVE output_table AS (
+  SELECT
+    customer_id,
+    node_id,
+    duration,
+    rn,
+    1 AS run_id
+  FROM ranked_customer_nodes
+  WHERE rn = 1
+
+  UNION ALL
+
+  SELECT
+    t2.customer_id,
+    t2.node_id,
+    t2.duration,
+    t2.rn,
+    CASE
+      WHEN t1.node_id != t2.node_id THEN t1.run_id + 1
+      ELSE t1.run_id
+    END AS run_id
+  FROM output_table t1
+  INNER JOIN ranked_customer_nodes t2
+    ON t1.rn + 1 = t2.rn
+    AND t1.customer_id = t2.customer_id
+),
+cte_customer_nodes AS (
+  SELECT
+    customer_id,
+    run_id,
+    SUM(duration) AS node_duration
+  FROM output_table
+  GROUP BY
+    customer_id,
+    run_id
+)
+SELECT
+  ROUND(AVG(node_duration)) AS average_node_duration
+FROM cte_customer_nodes;
+```
+![image](https://github.com/user-attachments/assets/062e529a-55c5-4693-94c7-aaadc903969d)
+
+The average duration is 17 days.
 
 ### What is the median, 80th and 95th percentile for this same reallocation days metric for each region?
+To answer this question we can reuse the query for the previous questions. We just need to add in the region and use PERCENTILE_CONT rather than the average.
+
+```sql
+DROP TABLE IF EXISTS ranked_customer_nodes;
+CREATE TEMP TABLE ranked_customer_nodes AS
+(SELECT
+  customer_id,
+  node_id,
+  region_id,
+  DATE_PART('day', AGE(end_date, start_date))::INTEGER AS duration,
+  ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY start_date) AS rn
+FROM data_bank.customer_nodes
+ORDER BY customer_id, start_date);
+
+WITH RECURSIVE output_table AS (
+  SELECT
+    customer_id,
+    region_id,
+    node_id,
+    duration,
+    rn,
+    1 AS run_id
+  FROM ranked_customer_nodes
+  WHERE rn = 1
+
+  UNION ALL
+
+  SELECT
+    t2.customer_id,
+    t2.region_id,
+    t2.node_id,
+    t2.duration,
+    t2.rn,
+    CASE
+      WHEN t1.node_id != t2.node_id THEN t1.run_id + 1
+      ELSE t1.run_id
+    END AS run_id
+  FROM output_table t1
+  INNER JOIN ranked_customer_nodes t2
+    ON t1.rn + 1 = t2.rn
+    AND t1.customer_id = t2.customer_id
+),
+cte_customer_nodes AS (
+  SELECT
+    customer_id,
+    region_id,
+    run_id,
+    SUM(duration) AS node_duration
+  FROM output_table
+  GROUP BY
+    customer_id,
+    run_id,
+    region_id
+)
+SELECT
+  regions.region_name,
+  ROUND(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY node_duration)) AS median_node_duration,
+  ROUND(PERCENTILE_CONT(0.8) WITHIN GROUP (ORDER BY node_duration)) AS pct80_node_duration,
+  ROUND(PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY node_duration)) AS pct95_node_duration
+FROM cte_customer_nodes
+INNER JOIN data_bank.regions
+  ON cte_customer_nodes.region_id = regions.region_id
+GROUP BY regions.region_name, regions.region_id
+ORDER BY regions.region_id;
+```
+![image](https://github.com/user-attachments/assets/11d91f7c-208e-4626-b654-5614066898ed)
 
 
 ### B. Customer Transactions
