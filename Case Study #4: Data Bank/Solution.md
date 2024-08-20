@@ -1,4 +1,4 @@
-# Case Study #5: Data Bank
+# Case Study #4: Data Bank
 Feel free to test these queries out [here.](https://www.db-fiddle.com/f/2GtQz4wZtuNNu7zXH5HtV4/3)
 
 ## Table of Contents
