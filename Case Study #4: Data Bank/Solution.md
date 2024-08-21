@@ -288,6 +288,33 @@ ORDER BY regions.region_id;
 ![image](https://github.com/user-attachments/assets/11d91f7c-208e-4626-b654-5614066898ed)
 
 
-### B. Customer Transactions
+## B. Customer Transactions
+### What is the unique count and total amount for each transaction type?
+```sql
+SELECT 
+	txn_type transaction_type,
+    COUNT(txn_type) transaction_type_count,
+    SUM(txn_amount) total_amount
+FROM data_bank.customer_transactions
+GROUP BY txn_type;
+```
+![image](https://github.com/user-attachments/assets/344c22b2-3d1e-419a-b9de-3e88c9438429)
 
+### What is the average historical deposit counts and amounts for all customers?
+```sql
+WITH customer_deposits AS (
+ SELECT 
+	customer_id,
+    COUNT(*) deposit_count,
+    SUM(txn_amount) total_amount
+FROM data_bank.customer_transactions
+WHERE txn_type = 'deposit'
+GROUP BY customer_id)
+
+SELECT 
+ROUND(AVG(deposit_count)) avg_deposit_count,
+ROUND(AVG(total_amount)) avg_total_amount
+FROM customer_deposits
+```
+![image](https://github.com/user-attachments/assets/d48863d0-40fe-4cb9-9358-72d95eed02b1)
 
