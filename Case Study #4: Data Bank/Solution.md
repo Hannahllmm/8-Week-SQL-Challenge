@@ -338,5 +338,10 @@ FROM customer_transactions
 WHERE deposit_count > 1 AND (purchase_count >= 1 OR withdrawal_count >= 1)
 GROUP BY transaction_month
 ```
+![image](https://github.com/user-attachments/assets/f2d55ed7-b96b-44a7-94ef-f16d2d62857a)
+
+### What is the closing balance for each customer at the end of the month? Also show the change in balance each month in the same table output.
+
+
 
 
